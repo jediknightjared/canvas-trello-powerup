@@ -15,7 +15,7 @@ function handleSave(e) {
 function loadToken() {
   const t = window.TrelloPowerUp.iframe();
 
-  const token = t.loadSecret("token").then((secret) => (document.querySelector("token").value = token));
+  const token = t.loadSecret("token").then((secret) => (document.querySelector("#token").value = token));
 }
 
 loadToken();
