@@ -1,7 +1,5 @@
-/**
- *
- * @param {SubmitEvent} e
- */
+document.querySelector("#settings").onsubmit = handleSave;
+
 function handleSave(e) {
   e.preventDefault();
 
