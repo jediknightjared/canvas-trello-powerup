@@ -1,5 +1,7 @@
 const express = import("express");
 
+console.log(express);
+
 const app = express();
 
 app.use(express.static("dist"));
