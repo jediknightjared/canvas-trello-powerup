@@ -1,6 +1,4 @@
-const express = import("express");
-
-console.log(express);
+const express = require("express");
 
 const app = express();
 
