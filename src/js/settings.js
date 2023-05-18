@@ -13,3 +13,11 @@ function handleSave(e) {
   console.log(token);
   t.storeSecret("token", token);
 }
+
+function loadToken() {
+  const t = window.TrelloPowerUp.iframe();
+
+  const token = t.loadSecret("token");
+
+  document.querySelector("token").value = token;
+}
