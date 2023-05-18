@@ -12,10 +12,12 @@ function handleSave(e) {
   t.storeSecret("token", token);
 }
 
-function loadToken() {
+async function loadToken() {
   const t = window.TrelloPowerUp.iframe();
 
-  const token = t.loadSecret("token").then((secret) => (document.querySelector("#token").value = token));
+  const token = await t.loadSecret("token");
+
+  document.querySelector("#token").value = token;
 }
 
 loadToken();
