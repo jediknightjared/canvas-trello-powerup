@@ -9,7 +9,7 @@ TrelloPowerUp.initialize({
     // it is the least disruptive, and fits in well with the rest of Trello's UX
     return t.popup({
       title: "Custom Fields Settings",
-      url: "../html/settings.html",
+      url: "/settings.html",
       height: 184 // we can always resize later
     });
   }
