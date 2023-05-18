@@ -17,3 +17,5 @@ function loadToken() {
 
   const token = t.loadSecret("token").then((secret) => (document.querySelector("token").value = token));
 }
+
+loadToken();
