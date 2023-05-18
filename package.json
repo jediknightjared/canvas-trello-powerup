@@ -1,0 +1,18 @@
+{
+  "name": "canvas-trello-powerup",
+  "version": "1.0.0",
+  "description": "A Trello Power-Up to integrate with Instructure Canvas domains to import assignments to your Trello board.",
+  "main": "index.js",
+  "scripts": {
+    "build": "parcel build src/html/*.html"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jediknightjared/canvas-trello-powerup"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "parcel-bundler": "^1.12.5"
+  }
+}
