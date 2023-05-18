@@ -4,6 +4,7 @@
   "description": "A Trello Power-Up to integrate with Instructure Canvas domains to import assignments to your Trello board.",
   "main": "index.js",
   "scripts": {
+    "start": "node server.js",
     "build": "parcel build src/html/*.html"
   },
   "repository": {
@@ -13,6 +14,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "express": "^4.18.2",
     "parcel-bundler": "^1.12.5"
   }
 }
