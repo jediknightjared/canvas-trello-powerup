@@ -4,12 +4,17 @@
     <meta charset="UTF-8" />
     <link rel="stylesheet" href="https://p.trellocdn.com/power-up.css" />
     <link rel="stylesheet" href="../css/settings.css" />
+    <script src="https://p.trellocdn.com/power-up.min.js" crossorigin="anonymous"></script>
+    <script src="../js/settings.js"></script>
   </head>
   <body>
     <form id="settings">
       <label for="token">Canvas Token</label>
       <input type="text" name="token" id="token" />
-      <input type="submit" value="Save" />
+      <input type="submit" value="Save" class="mod-primary" />
     </form>
+    <script>
+      document.querySelector("#settings").onsubmit = handleSave;
+    </script>
   </body>
 </html>
