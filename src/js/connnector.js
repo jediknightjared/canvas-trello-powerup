@@ -19,13 +19,26 @@ TrelloPowerUp.initialize({
 
     const url = options.url;
 
-    console.log(url);
+    const urlRegex = /^https:\/\/(\w+)\.instructure\.com\/courses\/([0-9]+)\/assignments\/([0-9]+)$/;
 
-    return new Promise(function (resolve) {
-      resolve({
-        name: "💻 " + options.url + " 🤔",
-        desc: "This Power-Up knows cool things about the attached url"
-      });
+    if (!urlRegex.test(url)) {
+      throw t.NotHandled();
+    }
+
+    return t.loadSecret("token").then((token) => {
+      const [, domain, courseID, assignmentID] = urlRegex.exec(fetchURL);
+
+      const fetchURL = `https://${domain}.instructure.com/api/v1/courses/${courseID}/assignments/${assignmentID}?access_token=${token}`;
+      return fetch(fetchURL)
+        .then((response) => response.json())
+        .then((data) => {
+          return new Promise(function (resolve) {
+            resolve({
+              name: data.name,
+              desc: "This Power-Up knows cool things about the attached url"
+            });
+          });
+        });
     });
 
     // if we don't actually have any valuable information about the url
