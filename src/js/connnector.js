@@ -29,7 +29,7 @@ TrelloPowerUp.initialize({
 
     const fetchURL = `https://${domain}.instructure.com/api/v1/courses/${courseID}/assignments/${assignmentID}?access_token=${token}`;
 
-    const response = await fetch(fetchURL, { mode: "no-cors" });
+    const response = await fetch(fetchURL);
     console.log(response);
     const data = await response.json();
     console.log(data);
