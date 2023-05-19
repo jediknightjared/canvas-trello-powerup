@@ -1,7 +1,5 @@
 var Promise = TrelloPowerUp.Promise;
 
-console.log("Test");
-
 TrelloPowerUp.initialize({
   "show-settings": function (t, options) {
     return t.popup({
@@ -31,9 +29,8 @@ TrelloPowerUp.initialize({
 
     const fetchURL = `https://${domain}.instructure.com/api/v1/courses/${courseID}/assignments/${assignmentID}?access_token=${token}`;
 
-    console.log(fetchURL);
-
     const response = await fetch(fetchURL, { mode: "no-cors" });
+    console.log(response);
     const data = await response.json();
     console.log(data);
 
