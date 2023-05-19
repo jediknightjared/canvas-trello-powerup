@@ -32,7 +32,7 @@ TrelloPowerUp.initialize({
 
       console.log(fetchURL);
 
-      return fetch(fetchURL)
+      return fetch(fetchURL, { mode: "no-cors" })
         .then((response) => response.json())
         .then((data) => {
           console.log(data);
