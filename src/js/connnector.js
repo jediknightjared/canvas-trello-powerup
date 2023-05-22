@@ -26,9 +26,11 @@ TrelloPowerUp.initialize({
     const response = await fetch(fetchURL);
     const data = await response.json();
 
-    return {
-      name: data.name,
-      desc: "This Power-Up knows cool things about the attached url"
-    };
+    return new Promise(function (resolve) {
+      resolve({
+        name: data.name,
+        desc: "This Power-Up knows cool things about the attached url"
+      });
+    });
   }
 });
