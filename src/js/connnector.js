@@ -7,14 +7,14 @@ let eventID = 0;
 
 const socket = io();
 
-socket.on("connect", (socket) => {
+socket.on("connect", () => {
   console.log("Socket connection complete!");
+});
 
-  socket.on("data", (id, data) => {
-    events[id]({
-      name: data.name,
-      desc: "This Power-Up knows cool things about the attached url"
-    });
+socket.on("data", (id, data) => {
+  events[id]({
+    name: data.name,
+    desc: "This Power-Up knows cool things about the attached url"
   });
 });
 
