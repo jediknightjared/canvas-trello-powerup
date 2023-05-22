@@ -2,6 +2,16 @@ var Promise = TrelloPowerUp.Promise;
 
 console.log("Canvas Power-Up Loaded");
 
+const socket = io();
+
+socket.on("connect", (socket) => {
+  console.log("Socket connection complete!");
+});
+
+socket.on("disconnect", (socket) => {
+  console.log("Socket disconnected!");
+});
+
 TrelloPowerUp.initialize({
   "show-settings": function (t, options) {
     return t.popup({
