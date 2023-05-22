@@ -2,10 +2,20 @@ var Promise = TrelloPowerUp.Promise;
 
 console.log("Canvas Power-Up Loaded");
 
+let events = [];
+let eventID = 0;
+
 const socket = io();
 
 socket.on("connect", (socket) => {
   console.log("Socket connection complete!");
+
+  socket.on("data", (id, data) => {
+    events[id]({
+      name: data.name,
+      desc: "This Power-Up knows cool things about the attached url"
+    });
+  });
 });
 
 socket.on("disconnect", (socket) => {
@@ -39,18 +49,19 @@ TrelloPowerUp.initialize({
 
     const fetchURL = `https://${domain}.instructure.com/api/v1/courses/${courseID}/assignments/${assignmentID}?access_token=${token}`;
 
-    console.log("Fetching from canvas API");
+    // console.log("Fetching from canvas API");
 
-    const response = await fetch(fetchURL);
-    const data = await response.json();
+    // const response = await fetch(fetchURL);
+    // const data = await response.json();
 
-    console.log(data); // debug
+    // console.log(data); // debug
+
+    const currID = eventID++;
+
+    socket.emit("load", currID, fetchURL);
 
     return new Promise(function (resolve) {
-      resolve({
-        name: data.name,
-        desc: "This Power-Up knows cool things about the attached url"
-      });
+      events[currID] = resolve;
     });
   }
 });

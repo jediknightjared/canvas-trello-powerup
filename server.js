@@ -13,6 +13,13 @@ const io = new Server(httpServer, {
 
 io.on("connection", (socket) => {
   console.log("New Socket Connection");
+
+  socket.on("load", async (id, url) => {
+    const response = await fetch(fetchURL);
+    const data = await response.json();
+
+    socket.emit("data", id, data);
+  });
 });
 
 const listener = httpServer.listen(process.env.PORT || 80, function () {
