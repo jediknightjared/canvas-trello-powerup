@@ -26,6 +26,8 @@ TrelloPowerUp.initialize({
     const response = await fetch(fetchURL);
     const data = await response.json();
 
+    console.log(data); // debug
+
     return new Promise(function (resolve) {
       resolve({
         name: data.name,
