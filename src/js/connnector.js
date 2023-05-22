@@ -14,7 +14,7 @@ socket.on("connect", () => {
 socket.on("data-canvas", (id, data) => {
   events[id]({
     name: data.name,
-    desc: "This Power-Up knows cool things about the attached url"
+    desc: data.description
   });
 });
 
