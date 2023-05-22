@@ -17,6 +17,7 @@ TrelloPowerUp.initialize({
     const urlRegex = /^https:\/\/(\w+)\.instructure\.com\/courses\/([0-9]+)\/assignments\/([0-9]+)$/;
 
     if (!urlRegex.test(url)) {
+      console.log("Unmatching URL: ", url);
       throw t.NotHandled();
     }
 
