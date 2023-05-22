@@ -15,7 +15,7 @@ io.on("connection", (socket) => {
   console.log("New Socket Connection");
 
   socket.on("load", async (id, url) => {
-    const response = await fetch(fetchURL);
+    const response = await fetch(url);
     const data = await response.json();
 
     socket.emit("data", id, data);
