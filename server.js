@@ -14,11 +14,11 @@ const io = new Server(httpServer, {
 io.on("connection", (socket) => {
   console.log("New Socket Connection");
 
-  socket.on("load", async (id, url) => {
+  socket.on("load-canvas", async (id, url) => {
     const response = await fetch(url);
     const data = await response.json();
 
-    socket.emit("data", id, data);
+    socket.emit("data-canvas", id, data);
   });
 });
 
