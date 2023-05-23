@@ -22,6 +22,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("fetch-json", async (id, url, options) => {
+    console.log("Fetching... ", id, url, options);
     const response = await fetch(url, options);
     const json = await response.json();
 
