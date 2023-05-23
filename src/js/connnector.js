@@ -51,8 +51,6 @@ TrelloPowerUp.initialize({
 
     const fetchURL = `https://${domain}.instructure.com/api/v1/courses/${courseID}/${type}/${assignmentID}?access_token=${token}`;
 
-    const currID = eventID++;
-
     const data = await serverFetchJSON(fetchURL);
 
     return new Promise(function (resolve) {
