@@ -53,10 +53,31 @@ TrelloPowerUp.initialize({
 
     const currID = eventID++;
 
-    socket.emit("load-canvas", currID, fetchURL);
+    const response = await serverFetch(url);
+    const data = await response.json();
 
     return new Promise(function (resolve) {
-      events[currID] = resolve;
+      resolve({
+        name: data.name || data.title,
+        desc: data.description.replaceAll(/<h([1-6])>/g, (_, n) => "#".repeat(+n) + " ").replaceAll(/<.+?>/g, ""),
+        due: data.due_at
+      });
     });
   }
+});
+
+const buffer = {};
+
+function serverFetch(...args) {
+  const id = Date.now();
+  socket.emit("fetch", id, ...args);
+
+  return new Promise((resolve) => {
+    buffer[id] = resolve;
+  });
+}
+
+socket.on("fetch-response", (id, response) => {
+  buffer[id](response);
+  delete buffer[id];
 });

@@ -20,6 +20,11 @@ io.on("connection", (socket) => {
 
     socket.emit("data-canvas", id, data);
   });
+
+  socket.on("fetch", async (id, ...args) => {
+    const res = await fetch(...args);
+    socket.emit("fetch-response", id, res);
+  });
 });
 
 const listener = httpServer.listen(process.env.PORT || 80, function () {
