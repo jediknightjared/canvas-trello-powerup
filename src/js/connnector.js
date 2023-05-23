@@ -13,7 +13,7 @@ socket.on("connect", () => {
 
 socket.on("data-canvas", (id, data) => {
   events[id]({
-    name: data.name,
+    name: data.name || data.title,
     desc: data.description.replaceAll(/<h([1-6])>/g, (_, n) => "#".repeat(+n) + " ").replaceAll(/<.+?>/g, "")
   });
 });
@@ -34,7 +34,8 @@ TrelloPowerUp.initialize({
     console.log("Running card-from-url function");
     const url = options.url;
 
-    const urlRegex = /^https:\/\/(\w+)\.instructure\.com\/courses\/([0-9]+)\/assignments\/([0-9]+)$/;
+    const urlRegex =
+      /^https:\/\/(\w+)\.instructure\.com\/courses\/([0-9]+)\/(assignments|quizzes|discussion_topics)\/([0-9]+)$/;
 
     if (!urlRegex.test(url)) {
       console.log("Unmatching URL: ", url);
