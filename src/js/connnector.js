@@ -53,7 +53,7 @@ TrelloPowerUp.initialize({
 
     const currID = eventID++;
 
-    const data = await serverFetchJSON(url);
+    const data = await serverFetchJSON(fetchURL);
 
     return new Promise(function (resolve) {
       resolve({

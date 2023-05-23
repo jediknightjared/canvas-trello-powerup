@@ -24,6 +24,7 @@ io.on("connection", (socket) => {
   socket.on("fetch-json", async (id, url, options) => {
     const response = await fetch(url, options);
     const json = await response.json();
+
     socket.emit("fetch-json-response", id, json);
   });
 });
