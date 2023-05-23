@@ -8,15 +8,7 @@ let eventID = 0;
 const socket = io();
 
 socket.on("connect", () => {
-  console.log("Socket connection complete!");
-});
-
-socket.on("data-canvas", (id, data) => {
-  events[id]({
-    name: data.name || data.title,
-    desc: data.description.replaceAll(/<h([1-6])>/g, (_, n) => "#".repeat(+n) + " ").replaceAll(/<.+?>/g, ""),
-    due: data.due_at
-  });
+  console.log("Socket connected!");
 });
 
 socket.on("disconnect", (socket) => {
@@ -24,7 +16,7 @@ socket.on("disconnect", (socket) => {
 });
 
 TrelloPowerUp.initialize({
-  "show-settings": function (t, options) {
+  "show-settings": function (t) {
     return t.popup({
       title: "Custom Fields Settings",
       url: "/settings.html",
@@ -32,7 +24,6 @@ TrelloPowerUp.initialize({
     });
   },
   "card-from-url": async function (t, options) {
-    console.log("Running card-from-url function");
     const url = options.url;
 
     const urlRegex =
@@ -42,8 +33,6 @@ TrelloPowerUp.initialize({
       console.log("Unmatching URL: ", url);
       throw t.NotHandled();
     }
-
-    console.log("loading token");
 
     const token = await t.loadSecret("token");
 
@@ -56,8 +45,7 @@ TrelloPowerUp.initialize({
     return new Promise(function (resolve) {
       resolve({
         name: data.name || data.title,
-        desc: data.description.replaceAll(/<h([1-6])>/g, (_, n) => "#".repeat(+n) + " ").replaceAll(/<.+?>/g, ""),
-        due: data.due_at
+        desc: data.description.replaceAll(/<h([1-6])>/g, (_, n) => "#".repeat(+n) + " ").replaceAll(/<.+?>/g, "")
       });
     });
   }
