@@ -46,9 +46,9 @@ TrelloPowerUp.initialize({
 
     const token = await t.loadSecret("token");
 
-    const [, domain, courseID, assignmentID] = urlRegex.exec(url);
+    const [, domain, courseID, type, assignmentID] = urlRegex.exec(url);
 
-    const fetchURL = `https://${domain}.instructure.com/api/v1/courses/${courseID}/assignments/${assignmentID}?access_token=${token}`;
+    const fetchURL = `https://${domain}.instructure.com/api/v1/courses/${courseID}/${type}/${assignmentID}?access_token=${token}`;
 
     const currID = eventID++;
 
