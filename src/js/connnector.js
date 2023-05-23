@@ -67,16 +67,16 @@ TrelloPowerUp.initialize({
 
 const buffer = {};
 
-function serverFetchJSON(...args) {
+function serverFetchJSON(url, options) {
   const id = Date.now();
-  socket.emit("fetch-json", id, ...args);
+  socket.emit("fetch-json", id, url, options);
 
   return new Promise((resolve) => {
     buffer[id] = resolve;
   });
 }
 
-socket.on("fetch-json-response", (id, response) => {
-  buffer[id](response);
+socket.on("fetch-json-response", (id, data) => {
+  buffer[id](data);
   delete buffer[id];
 });
