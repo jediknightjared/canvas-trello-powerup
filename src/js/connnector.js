@@ -14,7 +14,7 @@ socket.on("connect", () => {
 socket.on("data-canvas", (id, data) => {
   events[id]({
     name: data.name,
-    desc: data.description.replaceAll(/<.+?>/g, "")
+    desc: data.description.replaceAll(/<h([1-6])>/g, (_, n) => "#".repeat(+n) + " ").replaceAll(/<.+?>/g, "")
   });
 });
 
