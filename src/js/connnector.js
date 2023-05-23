@@ -64,9 +64,10 @@ TrelloPowerUp.initialize({
 });
 
 const buffer = {};
+let index = 0;
 
 function serverFetchJSON(url, options) {
-  const id = Date.now();
+  const id = index++;
   socket.emit("fetch-json", id, url, options);
 
   return new Promise((resolve) => {
