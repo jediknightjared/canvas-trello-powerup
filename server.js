@@ -21,9 +21,10 @@ io.on("connection", (socket) => {
     socket.emit("data-canvas", id, data);
   });
 
-  socket.on("fetch", async (id, ...args) => {
-    const res = await fetch(...args);
-    socket.emit("fetch-response", id, res);
+  socket.on("fetch-json", async (id, ...args) => {
+    const response = await fetch(...args);
+    const json = await response.json();
+    socket.emit("fetch-json-response", id, json);
   });
 });
 

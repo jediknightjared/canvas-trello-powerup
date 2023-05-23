@@ -53,9 +53,7 @@ TrelloPowerUp.initialize({
 
     const currID = eventID++;
 
-    const response = await serverFetch(url);
-    console.log(response);
-    const data = await response.json();
+    const data = await serverFetchJSON(url);
 
     return new Promise(function (resolve) {
       resolve({
@@ -69,16 +67,16 @@ TrelloPowerUp.initialize({
 
 const buffer = {};
 
-function serverFetch(...args) {
+function serverFetchJSON(...args) {
   const id = Date.now();
-  socket.emit("fetch", id, ...args);
+  socket.emit("fetch-json", id, ...args);
 
   return new Promise((resolve) => {
     buffer[id] = resolve;
   });
 }
 
-socket.on("fetch-response", (id, response) => {
+socket.on("fetch-json-response", (id, response) => {
   buffer[id](response);
   delete buffer[id];
 });
