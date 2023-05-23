@@ -42,12 +42,10 @@ TrelloPowerUp.initialize({
 
     const data = await serverFetchJSON(fetchURL);
 
-    return new Promise(function (resolve) {
-      resolve({
-        name: data.name || data.title,
-        desc: data.description.replaceAll(/<h([1-6])>/g, (_, n) => "#".repeat(+n) + " ").replaceAll(/<.+?>/g, "")
-      });
-    });
+    return {
+      name: data.name || data.title,
+      desc: data.description.replaceAll(/<h([1-6])>/g, (_, n) => "#".repeat(+n) + " ").replaceAll(/<.+?>/g, "")
+    };
   }
 });
 
