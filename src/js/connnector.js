@@ -46,6 +46,21 @@ TrelloPowerUp.initialize({
       name: data.name || data.title,
       desc: data.description.replaceAll(/<h([1-6])>/g, (_, n) => "#".repeat(+n) + " ").replaceAll(/<.+?>/g, "")
     };
+  },
+  "board-buttons": function (t, options) {
+    return [
+      {
+        text: "Load Asignments",
+        condition: "admin",
+        callback: function (t, options) {
+          t.modal({
+            title: "Load Assignments",
+            url: "/loadAssignments.html",
+            fullscreen: true
+          });
+        }
+      }
+    ];
   }
 });
 
