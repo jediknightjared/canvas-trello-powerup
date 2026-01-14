@@ -43,7 +43,9 @@ TrelloPowerUp.initialize({
 
             if (!token) {
                 console.error("Canvas token not set in Power-Up settings");
-                throw new Error("Canvas token not configured. Please set your Canvas API token in the Power-Up settings.");
+                throw new Error(
+                    "Canvas token not configured. Please set your Canvas API token in the Power-Up settings."
+                );
             }
 
             const [, domain, courseID, type, assignmentID] = urlRegex.exec(url);
@@ -65,10 +67,29 @@ TrelloPowerUp.initialize({
                 ? data.description.replaceAll(/<h([1-6])>/g, (_, n) => "#".repeat(+n) + " ").replaceAll(/<.+?>/g, "")
                 : "";
 
-            return {
+            // Extract due date from Canvas API response
+            let dueDate = null;
+            if (data.due_at) {
+                try {
+                    // Canvas returns due_at as ISO 8601 string, convert to Date object
+                    dueDate = new Date(data.due_at);
+                    console.log("Due date extracted:", dueDate.toISOString());
+                } catch (dateError) {
+                    console.warn("Failed to parse due date:", data.due_at, dateError);
+                }
+            }
+
+            const result = {
                 name: data.name || data.title,
                 desc: description
             };
+
+            // Only include due date if it exists and is valid
+            if (dueDate && !isNaN(dueDate.getTime())) {
+                result.due = dueDate;
+            }
+
+            return result;
         } catch (error) {
             console.error("Error in card-from-url:", error);
             // Don't re-throw the error as it might prevent other Power-Ups from working
