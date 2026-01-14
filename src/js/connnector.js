@@ -86,7 +86,9 @@ TrelloPowerUp.initialize({
 
             // Only include due date if it exists and is valid
             if (dueDate && !isNaN(dueDate.getTime())) {
-                result.due = dueDate;
+                // Trello expects due date as ISO string
+                result.due = dueDate.toISOString();
+                console.log("Setting card due date to:", result.due);
             }
 
             return result;
