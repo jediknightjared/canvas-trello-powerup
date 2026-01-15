@@ -25,8 +25,22 @@ io.on("connection", socket => {
 
     socket.on("fetch-json", async (id, url, options) => {
         try {
-            console.log("Fetching JSON from:", url.replace(/access_token=[^&]*/, "access_token=[TOKEN]"));
-            const response = await fetch(url, options ?? {});
+            // Extract access token from URL if present
+            const urlObj = new URL(url);
+            const token = urlObj.searchParams.get("access_token");
+            const cleanUrl = url.replace(/[?&]access_token=[^&]*/, "");
+
+            console.log("Fetching JSON from:", cleanUrl, token ? "(with token)" : "(no token)");
+
+            const fetchOptions = { ...options };
+            if (token) {
+                fetchOptions.headers = {
+                    ...fetchOptions.headers,
+                    Authorization: `Bearer ${token}`
+                };
+            }
+
+            const response = await fetch(cleanUrl, fetchOptions);
 
             if (!response.ok) {
                 console.error(`Canvas API error: ${response.status} ${response.statusText}`);

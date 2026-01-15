@@ -72,6 +72,7 @@ async function loadAssignments(courseId) {
         assignmentsList.innerHTML = '<div class="loading">Loading assignments...</div>';
 
         const assignmentsUrl = `https://canvas.instructure.com/api/v1/courses/${courseId}/assignments?access_token=${canvasToken}&include[]=submission`;
+        console.log("Loading assignments from course:", courseId);
         const assignments = await serverFetchJSON(assignmentsUrl);
 
         currentAssignments = assignments.filter(assignment => assignment.name && !assignment.graded_submissions_exist);
@@ -80,7 +81,16 @@ async function loadAssignments(courseId) {
         assignmentsSection.style.display = "block";
     } catch (error) {
         console.error("Error loading assignments:", error);
-        showError("Failed to load assignments from Canvas.");
+        let errorMessage = "Failed to load assignments from Canvas.";
+
+        if (error.message.includes("403")) {
+            errorMessage =
+                "Access denied to course assignments. Your Canvas token may not have permission to view assignments for this course, or you may not be enrolled as an instructor.";
+        } else if (error.message.includes("401")) {
+            errorMessage = "Canvas API token is invalid or expired. Please update your token in the Power-Up settings.";
+        }
+
+        showError(errorMessage);
     }
 }
 
