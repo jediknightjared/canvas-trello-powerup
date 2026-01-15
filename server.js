@@ -4,7 +4,9 @@ const { Server } = require("socket.io");
 
 const app = express();
 
+// Serve static files from dist and src
 app.use(express.static("dist"));
+app.use(express.static("src"));
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
