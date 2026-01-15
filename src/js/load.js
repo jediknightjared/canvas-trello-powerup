@@ -14,22 +14,13 @@ let canvasToken;
 let currentAssignments = [];
 
 // Initialize
-t.loadSecret("token").then((token) => {
+t.loadSecret("token").then(token => {
     canvasToken = token;
     if (token) {
         loadCourses();
     } else {
         showError("Canvas API token not configured. Please set it in the Power-Up settings.");
     }
-});
-
-// Socket event handlers
-socket.on("data-canvas", (id, data) => {
-    handleCanvasResponse(id, data);
-});
-
-socket.on("fetch-json-response", (id, data) => {
-    handleCanvasResponse(id, data);
 });
 
 // Load courses from Canvas
@@ -39,8 +30,8 @@ async function loadCourses() {
         const response = await serverFetchJSON(coursesUrl);
 
         // Filter to show only courses the user can access
-        const accessibleCourses = response.filter(course =>
-            course.name && course.id && !course.access_restricted_by_date
+        const accessibleCourses = response.filter(
+            course => course.name && course.id && !course.access_restricted_by_date
         );
 
         if (accessibleCourses.length === 0) {
@@ -53,13 +44,12 @@ async function loadCourses() {
         accessibleCourses.forEach(course => {
             const option = document.createElement("option");
             option.value = course.id;
-            option.textContent = `${course.name} (${course.term?.name || 'No Term'})`;
+            option.textContent = `${course.name} (${course.term?.name || "No Term"})`;
             courseSelect.appendChild(option);
         });
 
         loadingDiv.style.display = "none";
         contentDiv.style.display = "block";
-
     } catch (error) {
         console.error("Error loading courses:", error);
         showError("Failed to load courses from Canvas. Please check your API token.");
@@ -67,7 +57,7 @@ async function loadCourses() {
 }
 
 // Handle course selection
-courseSelect.addEventListener("change", (e) => {
+courseSelect.addEventListener("change", e => {
     const courseId = e.target.value;
     if (courseId) {
         loadAssignments(courseId);
@@ -84,13 +74,10 @@ async function loadAssignments(courseId) {
         const assignmentsUrl = `https://canvas.instructure.com/api/v1/courses/${courseId}/assignments?access_token=${canvasToken}&include[]=submission`;
         const assignments = await serverFetchJSON(assignmentsUrl);
 
-        currentAssignments = assignments.filter(assignment =>
-            assignment.name && !assignment.graded_submissions_exist
-        );
+        currentAssignments = assignments.filter(assignment => assignment.name && !assignment.graded_submissions_exist);
 
         displayAssignments(currentAssignments);
         assignmentsSection.style.display = "block";
-
     } catch (error) {
         console.error("Error loading assignments:", error);
         showError("Failed to load assignments from Canvas.");
@@ -102,7 +89,8 @@ function displayAssignments(assignments) {
     assignmentsList.innerHTML = "";
 
     if (assignments.length === 0) {
-        assignmentsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No assignments found for this course.</div>';
+        assignmentsList.innerHTML =
+            '<div style="padding: 20px; text-align: center; color: #666;">No assignments found for this course.</div>';
         importBtn.disabled = true;
         return;
     }
@@ -155,13 +143,13 @@ function displayAssignments(assignments) {
 // Handle select all/none buttons
 selectAllBtn.addEventListener("click", () => {
     const checkboxes = assignmentsList.querySelectorAll(".assignment-checkbox");
-    checkboxes.forEach(cb => cb.checked = true);
+    checkboxes.forEach(cb => (cb.checked = true));
     updateImportButton();
 });
 
 selectNoneBtn.addEventListener("click", () => {
     const checkboxes = assignmentsList.querySelectorAll(".assignment-checkbox");
-    checkboxes.forEach(cb => cb.checked = false);
+    checkboxes.forEach(cb => (cb.checked = false));
     updateImportButton();
 });
 
@@ -174,8 +162,9 @@ function updateImportButton() {
 
 // Handle import button click
 importBtn.addEventListener("click", async () => {
-    const selectedIndexes = Array.from(assignmentsList.querySelectorAll(".assignment-checkbox:checked"))
-        .map(cb => parseInt(cb.dataset.index));
+    const selectedIndexes = Array.from(assignmentsList.querySelectorAll(".assignment-checkbox:checked")).map(cb =>
+        parseInt(cb.dataset.index)
+    );
 
     if (selectedIndexes.length === 0) return;
 
@@ -197,7 +186,6 @@ importBtn.addEventListener("click", async () => {
         setTimeout(() => {
             t.closeModal();
         }, 2000);
-
     } catch (error) {
         console.error("Error importing assignments:", error);
         showError("Failed to import some assignments. Please try again.");
@@ -210,14 +198,14 @@ importBtn.addEventListener("click", async () => {
 async function createCardFromAssignment(assignment) {
     const cardData = {
         name: assignment.name,
-        desc: assignment.description ?
-            assignment.description.replace(/<h([1-6])>/g, (_, n) => "#".repeat(+n) + " ").replace(/<[^>]*>/g, "") :
-            ""
+        desc: assignment.description
+            ? assignment.description.replace(/<h([1-6])>/g, (_, n) => "#".repeat(+n) + " ").replace(/<[^>]*>/g, "")
+            : ""
     };
 
     // Create the card on the current Trello list
-    await t.card('idList').then(async (listId) => {
-        await t.cards('add', cardData.name, listId, cardData.desc);
+    await t.card("idList").then(async listId => {
+        await t.cards("add", cardData.name, listId, cardData.desc);
     });
 }
 

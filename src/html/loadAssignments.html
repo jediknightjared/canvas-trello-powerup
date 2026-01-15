@@ -1,57 +1,105 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="stylesheet" href="https://p.trellocdn.com/power-up.css" />
-    <link rel="stylesheet" href="../css/settings.css" />
-    <script src="https://p.trellocdn.com/power-up.min.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js" integrity="sha384-c79GN5VsunZvi+Q/WObgk2in0CbZsHnjEqvFxC5DxHn9lTfNce2WW6h2pH6u/kF+" crossorigin="anonymous"></script>
-    <title>Load Canvas Assignments</title>
-    <style>
-      .loading { text-align: center; padding: 20px; }
-      .course-section { margin: 20px 0; }
-      .assignments-list { max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; }
-      .assignment-item { padding: 10px; border-bottom: 1px solid #eee; display: flex; align-items: center; }
-      .assignment-item:last-child { border-bottom: none; }
-      .assignment-checkbox { margin-right: 10px; }
-      .assignment-info { flex: 1; }
-      .assignment-title { font-weight: bold; }
-      .assignment-due { color: #666; font-size: 0.9em; }
-      .assignment-desc { color: #888; font-size: 0.8em; margin-top: 4px; }
-      .actions { margin-top: 20px; text-align: center; }
-      .error { color: #d32f2f; background: #ffebee; padding: 10px; border-radius: 4px; margin: 10px 0; }
-      .success { color: #2e7d32; background: #e8f5e8; padding: 10px; border-radius: 4px; margin: 10px 0; }
-    </style>
-  </head>
-  <body>
-    <div id="loading" class="loading">
-      <p>Loading courses from Canvas...</p>
-    </div>
-
-    <div id="content" style="display: none;">
-      <div class="course-section">
-        <label for="course">Select Course:</label>
-        <select name="course" id="course" class="mod-input">
-          <option value="">Choose a course...</option>
-        </select>
-      </div>
-
-      <div id="assignments-section" style="display: none;">
-        <h3>Assignments</h3>
-        <div id="assignments-list" class="assignments-list">
-          <!-- Assignments will be loaded here -->
+    <head>
+        <meta charset="UTF-8" />
+        <link rel="stylesheet" href="https://p.trellocdn.com/power-up.css" />
+        <link rel="stylesheet" href="../css/settings.css" />
+        <script src="https://p.trellocdn.com/power-up.min.js" crossorigin="anonymous"></script>
+        <script
+            src="https://cdn.socket.io/4.6.0/socket.io.min.js"
+            integrity="sha384-c79GN5VsunZvi+Q/WObgk2in0CbZsHnjEqvFxC5DxHn9lTfNce2WW6h2pH6u/kF+"
+            crossorigin="anonymous"></script>
+        <title>Load Canvas Assignments</title>
+        <style>
+            .loading {
+                text-align: center;
+                padding: 20px;
+            }
+            .course-section {
+                margin: 20px 0;
+            }
+            .assignments-list {
+                max-height: 400px;
+                overflow-y: auto;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+            }
+            .assignment-item {
+                padding: 10px;
+                border-bottom: 1px solid #eee;
+                display: flex;
+                align-items: center;
+            }
+            .assignment-item:last-child {
+                border-bottom: none;
+            }
+            .assignment-checkbox {
+                margin-right: 10px;
+            }
+            .assignment-info {
+                flex: 1;
+            }
+            .assignment-title {
+                font-weight: bold;
+            }
+            .assignment-due {
+                color: #666;
+                font-size: 0.9em;
+            }
+            .assignment-desc {
+                color: #888;
+                font-size: 0.8em;
+                margin-top: 4px;
+            }
+            .actions {
+                margin-top: 20px;
+                text-align: center;
+            }
+            .error {
+                color: #d32f2f;
+                background: #ffebee;
+                padding: 10px;
+                border-radius: 4px;
+                margin: 10px 0;
+            }
+            .success {
+                color: #2e7d32;
+                background: #e8f5e8;
+                padding: 10px;
+                border-radius: 4px;
+                margin: 10px 0;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="loading" class="loading">
+            <p>Loading courses from Canvas...</p>
         </div>
 
-        <div class="actions">
-          <button id="select-all" class="mod-primary">Select All</button>
-          <button id="select-none" class="mod-secondary">Select None</button>
-          <button id="import-selected" class="mod-primary" disabled>Import Selected to Trello</button>
+        <div id="content" style="display: none">
+            <div class="course-section">
+                <label for="course">Select Course:</label>
+                <select name="course" id="course" class="mod-input">
+                    <option value="">Choose a course...</option>
+                </select>
+            </div>
+
+            <div id="assignments-section" style="display: none">
+                <h3>Assignments</h3>
+                <div id="assignments-list" class="assignments-list">
+                    <!-- Assignments will be loaded here -->
+                </div>
+
+                <div class="actions">
+                    <button id="select-all" class="mod-primary">Select All</button>
+                    <button id="select-none" class="mod-secondary">Select None</button>
+                    <button id="import-selected" class="mod-primary" disabled>Import Selected to Trello</button>
+                </div>
+            </div>
+
+            <div id="status"></div>
         </div>
-      </div>
 
-      <div id="status"></div>
-    </div>
-
-    <script src="../js/load.js"></script>
-  </body>
+        <script src="../js/load.js"></script>
+    </body>
 </html>
