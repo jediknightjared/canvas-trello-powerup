@@ -11,22 +11,37 @@ const statusDiv = document.querySelector("#status");
 const t = window.TrelloPowerUp.iframe();
 const socket = io();
 let canvasToken;
-let currentAssignments = [];
+let canvasDomain;
 
 // Initialize
-t.loadSecret("token").then(token => {
-    canvasToken = token;
-    if (token) {
-        loadCourses();
-    } else {
-        showError("Canvas API token not configured. Please set it in the Power-Up settings.");
-    }
-});
+t.loadSecret("domain")
+    .then(domain => {
+        canvasDomain = domain;
+        return t.loadSecret("token");
+    })
+    .then(token => {
+        canvasToken = token;
+        if (token && canvasDomain) {
+            // Validate domain format
+            if (!canvasDomain.includes(".instructure.com") && !canvasDomain.includes(".canvas")) {
+                showError(
+                    "Invalid Canvas domain format. Please use your institution's Canvas URL (e.g., university.instructure.com)."
+                );
+                return;
+            }
+            loadCourses();
+        } else {
+            let missing = [];
+            if (!canvasDomain) missing.push("Canvas domain");
+            if (!token) missing.push("API token");
+            showError(`${missing.join(" and ")} not configured. Please set them in the Power-Up settings.`);
+        }
+    });
 
 // Load courses from Canvas
 async function loadCourses() {
     try {
-        const coursesUrl = `https://canvas.instructure.com/api/v1/courses?access_token=${canvasToken}&enrollment_state=active&include[]=term`;
+        const coursesUrl = `https://${canvasDomain}/api/v1/courses?access_token=${canvasToken}&enrollment_state=active&include[]=term`;
         const response = await serverFetchJSON(coursesUrl);
 
         // Filter to show only courses the user can access
@@ -71,7 +86,7 @@ async function loadAssignments(courseId) {
     try {
         assignmentsList.innerHTML = '<div class="loading">Loading assignments...</div>';
 
-        const assignmentsUrl = `https://canvas.instructure.com/api/v1/courses/${courseId}/assignments?access_token=${canvasToken}&include[]=submission`;
+        const assignmentsUrl = `https://${canvasDomain}/api/v1/courses/${courseId}/assignments?access_token=${canvasToken}&include[]=submission`;
         console.log("Loading assignments from course:", courseId);
         const assignments = await serverFetchJSON(assignmentsUrl);
 
