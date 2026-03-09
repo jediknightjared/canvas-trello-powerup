@@ -278,6 +278,9 @@ async function createCardFromAssignment(assignment) {
         : "";
 
     const restApi = await t.getRestApi();
+    if (!await restApi.isAuthorized()) {
+        await restApi.authorize({ scope: "read,write", expiration: "never" });
+    }
     const token = await restApi.getToken();
     const params = new URLSearchParams({
         key: TRELLO_APP_KEY,
