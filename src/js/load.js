@@ -9,7 +9,10 @@ const loadingDiv = document.querySelector("#loading");
 const contentDiv = document.querySelector("#content");
 const statusDiv = document.querySelector("#status");
 
-const t = window.TrelloPowerUp.iframe();
+const t = window.TrelloPowerUp.iframe({
+    appKey: "b5c06882ca740f9920dae402dfbb8341",
+    appName: "Canvas PowerUp"
+});
 const socket = io();
 let canvasToken;
 let canvasDomain;
