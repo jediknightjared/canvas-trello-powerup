@@ -1,3 +1,4 @@
+const listSelect = document.querySelector("#list");
 const courseSelect = document.querySelector("#course");
 const assignmentsSection = document.querySelector("#assignments-section");
 const assignmentsList = document.querySelector("#assignments-list");
@@ -14,6 +15,27 @@ let canvasToken;
 let canvasDomain;
 let currentAssignments;
 let isImporting = false;
+
+// Load Trello lists into the list selector
+async function loadLists() {
+    try {
+        const lists = await t.lists("id", "name");
+        listSelect.innerHTML = '<option value="">Choose a list...</option>';
+        lists.forEach(list => {
+            const option = document.createElement("option");
+            option.value = list.id;
+            option.textContent = list.name;
+            listSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error("Error loading Trello lists:", error);
+        showError("Failed to load Trello lists.");
+    }
+}
+
+listSelect.addEventListener("change", updateImportButton);
+
+loadLists();
 
 // Initialize
 t.loadSecret("domain")
@@ -191,7 +213,7 @@ selectNoneBtn.addEventListener("click", () => {
 // Update import button state
 function updateImportButton() {
     const checkedBoxes = assignmentsList.querySelectorAll(".assignment-checkbox:checked");
-    importBtn.disabled = checkedBoxes.length === 0;
+    importBtn.disabled = checkedBoxes.length === 0 || !listSelect.value;
     importBtn.textContent = `Import ${checkedBoxes.length} Selected to Trello`;
 }
 
@@ -246,16 +268,17 @@ importBtn.addEventListener("click", async () => {
 
 // Create a Trello card from a Canvas assignment
 async function createCardFromAssignment(assignment) {
-    const cardData = {
-        name: assignment.name,
-        desc: assignment.description
-            ? assignment.description.replace(/<h([1-6])>/g, (_, n) => "#".repeat(+n) + " ").replace(/<[^>]*>/g, "")
-            : ""
-    };
+    const name = assignment.name;
+    const desc = assignment.description
+        ? assignment.description.replace(/<h([1-6])>/g, (_, n) => "#".repeat(+n) + " ").replace(/<[^>]*>/g, "")
+        : "";
 
-    // Create the card on the current Trello list
-    const { idList } = await t.card("idList");
-    await t.cards("add", cardData.name, idList, cardData.desc);
+    const api = await t.getRestApi();
+    await api.post("/1/cards", {
+        name,
+        idList: listSelect.value,
+        desc
+    });
 }
 
 // Server communication helper
