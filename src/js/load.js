@@ -114,20 +114,70 @@ courseSelect.addEventListener("change", e => {
     }
 });
 
-// Load assignments for selected course
+// Load assignments, quizzes, and discussions for selected course
 async function loadAssignments(courseId) {
     try {
         assignmentsList.innerHTML = '<div class="loading">Loading assignments...</div>';
 
-        const assignmentsUrl = `https://${canvasDomain}/api/v1/courses/${courseId}/assignments?access_token=${canvasToken}&include[]=submission`;
-        const assignments = await serverFetchJSON(assignmentsUrl);
+        const base = `https://${canvasDomain}/api/v1/courses/${courseId}`;
+        const tok = `access_token=${canvasToken}&per_page=100`;
 
-        if (!Array.isArray(assignments)) {
-            throw new Error("Unexpected response from Canvas API");
+        const [assignmentsResult, quizzesResult, discussionsResult] = await Promise.allSettled([
+            serverFetchJSON(`${base}/assignments?${tok}&include[]=submission`),
+            serverFetchJSON(`${base}/quizzes?${tok}`),
+            serverFetchJSON(`${base}/discussion_topics?${tok}`)
+        ]);
+
+        const items = [];
+
+        if (assignmentsResult.status === "fulfilled" && Array.isArray(assignmentsResult.value)) {
+            for (const a of assignmentsResult.value) {
+                if (!a.name) continue;
+                items.push({
+                    name: a.name,
+                    description: a.description || "",
+                    due_at: a.due_at,
+                    submitted: ["submitted", "graded"].includes(a.submission?.workflow_state),
+                    type: "assignment"
+                });
+            }
         }
 
-        currentAssignments = assignments.filter(assignment => assignment.name && !assignment.graded_submissions_exist);
+        if (quizzesResult.status === "fulfilled" && Array.isArray(quizzesResult.value)) {
+            for (const q of quizzesResult.value) {
+                if (!q.due_at) continue;
+                items.push({
+                    name: q.title,
+                    description: q.description || "",
+                    due_at: q.due_at,
+                    submitted: false,
+                    type: "quiz"
+                });
+            }
+        }
 
+        if (discussionsResult.status === "fulfilled" && Array.isArray(discussionsResult.value)) {
+            for (const d of discussionsResult.value) {
+                const due = d.assignment?.due_at || d.todo_date;
+                if (!due) continue;
+                items.push({
+                    name: d.title,
+                    description: d.message || "",
+                    due_at: due,
+                    submitted: false,
+                    type: "discussion"
+                });
+            }
+        }
+
+        items.sort((a, b) => {
+            if (!a.due_at && !b.due_at) return 0;
+            if (!a.due_at) return 1;
+            if (!b.due_at) return -1;
+            return new Date(a.due_at) - new Date(b.due_at);
+        });
+
+        currentAssignments = items;
         displayAssignments(currentAssignments);
         assignmentsSection.style.display = "block";
     } catch (error) {
@@ -172,6 +222,19 @@ function displayAssignments(assignments) {
         titleDiv.className = "assignment-title";
         titleDiv.textContent = assignment.name;
 
+        const badgesDiv = document.createElement("div");
+        badgesDiv.className = "assignment-badges";
+        const typeBadge = document.createElement("span");
+        typeBadge.className = `badge badge-${assignment.type}`;
+        typeBadge.textContent = assignment.type.charAt(0).toUpperCase() + assignment.type.slice(1);
+        badgesDiv.appendChild(typeBadge);
+        if (assignment.submitted) {
+            const submittedBadge = document.createElement("span");
+            submittedBadge.className = "badge badge-submitted";
+            submittedBadge.textContent = "Submitted";
+            badgesDiv.appendChild(submittedBadge);
+        }
+
         const dueDiv = document.createElement("div");
         dueDiv.className = "assignment-due";
         if (assignment.due_at) {
@@ -189,6 +252,7 @@ function displayAssignments(assignments) {
         }
 
         infoDiv.appendChild(titleDiv);
+        infoDiv.appendChild(badgesDiv);
         infoDiv.appendChild(dueDiv);
         infoDiv.appendChild(descDiv);
 

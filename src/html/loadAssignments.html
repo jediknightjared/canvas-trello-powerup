@@ -51,6 +51,21 @@
                 font-size: 0.8em;
                 margin-top: 4px;
             }
+            .assignment-badges {
+                margin: 2px 0 4px;
+                display: flex;
+                gap: 4px;
+            }
+            .badge {
+                font-size: 0.75em;
+                padding: 1px 6px;
+                border-radius: 10px;
+                font-weight: 600;
+            }
+            .badge-assignment { background: #e3f2fd; color: #1565c0; }
+            .badge-quiz       { background: #f3e5f5; color: #6a1b9a; }
+            .badge-discussion { background: #e8f5e9; color: #2e7d32; }
+            .badge-submitted  { background: #fff3e0; color: #e65100; }
             .actions {
                 margin-top: 20px;
                 text-align: center;
@@ -92,7 +107,7 @@
             </div>
 
             <div id="assignments-section" style="display: none">
-                <h3>Assignments</h3>
+                <h3>Course Items</h3>
                 <div id="assignments-list" class="assignments-list">
                     <!-- Assignments will be loaded here -->
                 </div>
