@@ -31,7 +31,8 @@ io.on("connection", socket => {
             // Extract access token from URL if present
             const urlObj = new URL(url);
             const token = urlObj.searchParams.get("access_token");
-            const cleanUrl = url.replace(/[?&]access_token=[^&]*/, "");
+            urlObj.searchParams.delete("access_token");
+            const cleanUrl = urlObj.toString();
 
             console.log("Fetching JSON from:", cleanUrl, token ? "(with token)" : "(no token)");
 
