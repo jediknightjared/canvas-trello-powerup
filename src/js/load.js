@@ -12,6 +12,8 @@ const t = window.TrelloPowerUp.iframe();
 const socket = io();
 let canvasToken;
 let canvasDomain;
+let currentAssignments;
+let isImporting = false;
 
 // Initialize
 t.loadSecret("domain")
@@ -23,7 +25,8 @@ t.loadSecret("domain")
         canvasToken = token;
         if (token && canvasDomain) {
             // Validate domain format
-            if (!canvasDomain.includes(".instructure.com") && !canvasDomain.includes(".canvas")) {
+            const domainRegex = /^([\w-]+\.instructure\.com|canvas\.[\w.-]+\.[\w]+)$/;
+            if (!domainRegex.test(canvasDomain)) {
                 showError(
                     "Invalid Canvas domain format. Please use your institution's Canvas URL (e.g., university.instructure.com)."
                 );
@@ -43,6 +46,10 @@ async function loadCourses() {
     try {
         const coursesUrl = `https://${canvasDomain}/api/v1/courses?access_token=${canvasToken}&enrollment_state=active&include[]=term`;
         const response = await serverFetchJSON(coursesUrl);
+
+        if (!Array.isArray(response)) {
+            throw new Error("Unexpected response from Canvas API");
+        }
 
         // Filter to show only courses the user can access
         const accessibleCourses = response.filter(
@@ -87,8 +94,11 @@ async function loadAssignments(courseId) {
         assignmentsList.innerHTML = '<div class="loading">Loading assignments...</div>';
 
         const assignmentsUrl = `https://${canvasDomain}/api/v1/courses/${courseId}/assignments?access_token=${canvasToken}&include[]=submission`;
-        console.log("Loading assignments from course:", courseId);
         const assignments = await serverFetchJSON(assignmentsUrl);
+
+        if (!Array.isArray(assignments)) {
+            throw new Error("Unexpected response from Canvas API");
+        }
 
         currentAssignments = assignments.filter(assignment => assignment.name && !assignment.graded_submissions_exist);
 
@@ -192,6 +202,9 @@ importBtn.addEventListener("click", async () => {
     );
 
     if (selectedIndexes.length === 0) return;
+    if (!currentAssignments) return;
+    if (isImporting) return;
+    isImporting = true;
 
     try {
         importBtn.disabled = true;
@@ -200,22 +213,33 @@ importBtn.addEventListener("click", async () => {
         const selectedAssignments = selectedIndexes.map(index => currentAssignments[index]);
 
         // Create cards for selected assignments
+        let succeeded = 0;
+        const failed = [];
         for (const assignment of selectedAssignments) {
-            await createCardFromAssignment(assignment);
+            try {
+                await createCardFromAssignment(assignment);
+                succeeded++;
+            } catch {
+                failed.push(assignment.name);
+            }
         }
 
-        showSuccess(`Successfully imported ${selectedAssignments.length} assignment(s) to Trello!`);
-        importBtn.textContent = "Import Complete";
-
-        // Close modal after a delay
-        setTimeout(() => {
-            t.closeModal();
-        }, 2000);
+        if (failed.length === 0) {
+            showSuccess(`Successfully imported ${succeeded} assignment(s) to Trello!`);
+            importBtn.textContent = "Import Complete";
+            setTimeout(() => { t.closeModal(); }, 2000);
+        } else {
+            showError(`Imported ${succeeded}, failed ${failed.length}: ${failed.join(", ")}`);
+            importBtn.disabled = false;
+            importBtn.textContent = "Import Selected to Trello";
+        }
     } catch (error) {
         console.error("Error importing assignments:", error);
-        showError("Failed to import some assignments. Please try again.");
+        showError("Failed to import assignments. Please try again.");
         importBtn.disabled = false;
         importBtn.textContent = "Import Selected to Trello";
+    } finally {
+        isImporting = false;
     }
 });
 
@@ -229,9 +253,8 @@ async function createCardFromAssignment(assignment) {
     };
 
     // Create the card on the current Trello list
-    await t.card("idList").then(async listId => {
-        await t.cards("add", cardData.name, listId, cardData.desc);
-    });
+    const { idList } = await t.card("idList");
+    await t.cards("add", cardData.name, idList, cardData.desc);
 }
 
 // Server communication helper
@@ -262,11 +285,17 @@ function serverFetchJSON(url, options) {
 
 // UI helper functions
 function showError(message) {
-    statusDiv.innerHTML = `<div class="error">${message}</div>`;
+    const div = document.createElement("div");
+    div.className = "error";
+    div.textContent = message || "";
+    statusDiv.replaceChildren(div);
     loadingDiv.style.display = "none";
     contentDiv.style.display = "block";
 }
 
 function showSuccess(message) {
-    statusDiv.innerHTML = `<div class="success">${message}</div>`;
+    const div = document.createElement("div");
+    div.className = "success";
+    div.textContent = message || "";
+    statusDiv.replaceChildren(div);
 }

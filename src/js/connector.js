@@ -1,19 +1,13 @@
 var Promise = TrelloPowerUp.Promise;
 
-console.log("Canvas Power-Up Loaded");
-
 let events = [];
 let eventID = 0;
 
 const socket = io();
 
-socket.on("connect", () => {
-    console.log("Socket connected!");
-});
+socket.on("connect", () => {});
 
-socket.on("disconnect", socket => {
-    console.log("Socket disconnected!");
-});
+socket.on("disconnect", socket => {});
 
 TrelloPowerUp.initialize({
     "show-settings": function (t) {
@@ -24,40 +18,29 @@ TrelloPowerUp.initialize({
         });
     },
     "card-from-url": async function (t, options) {
-        console.log("card-from-url called with options:", options);
         const url = options.url;
-        console.log("Processing URL:", url);
 
         const urlRegex =
             /^https:\/\/([\w.-]+)\.instructure\.com\/courses\/([0-9]+)\/(assignments|quizzes|discussion_topics)\/([0-9]+)(?:[/?#].*)?$/;
 
         if (!urlRegex.test(url)) {
-            console.log("Unmatching URL: ", url);
             throw t.NotHandled();
         }
-
-        console.log("URL matched regex");
 
         try {
             const token = await t.loadSecret("token");
 
             if (!token) {
-                console.error("Canvas token not set in Power-Up settings");
                 throw new Error(
                     "Canvas token not configured. Please set your Canvas API token in the Power-Up settings."
                 );
             }
 
             const [, domain, courseID, type, assignmentID] = urlRegex.exec(url);
-            console.log("Extracted:", { domain, courseID, type, assignmentID });
 
             const fetchURL = `https://${domain}.instructure.com/api/v1/courses/${courseID}/${type}/${assignmentID}?access_token=${token}`;
 
-            console.log("Fetching from Canvas API:", fetchURL.replace(token, "[TOKEN]"));
-
             const data = await serverFetchJSON(fetchURL);
-
-            console.log("Canvas API response:", data);
 
             if (!data || (!data.name && !data.title)) {
                 throw new Error("Invalid response from Canvas API - no title found");
@@ -81,7 +64,7 @@ TrelloPowerUp.initialize({
     "board-buttons": function (t, options) {
         return [
             {
-                text: "Load Asignments",
+                text: "Load Assignments",
                 condition: "admin",
                 callback: function (t, options) {
                     t.modal({
@@ -99,7 +82,6 @@ const buffer = {};
 let index = 0;
 
 function serverFetchJSON(url, options) {
-    console.log("serverFetchJSON called with URL:", url.replace(/access_token=[^&]*/, "access_token=[TOKEN]"));
     const id = index++;
     socket.emit("fetch-json", id, url, options);
 

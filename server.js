@@ -17,10 +17,13 @@ io.on("connection", socket => {
     console.log("New Socket Connection");
 
     socket.on("load-canvas", async (id, url) => {
-        const response = await fetch(url);
-        const data = await response.json();
-
-        socket.emit("data-canvas", id, data);
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            socket.emit("data-canvas", id, data);
+        } catch (error) {
+            socket.emit("data-canvas", id, { error: error.message });
+        }
     });
 
     socket.on("fetch-json", async (id, url, options) => {
@@ -63,7 +66,7 @@ io.on("connection", socket => {
     });
 });
 
-const listener = httpServer.listen(process.env.PORT || 80, function () {
+const listener = httpServer.listen(process.env.PORT || 3000, function () {
     console.info(`Node Version: ${process.version}`);
     console.log("Trello Power-Up Server listening on port " + listener.address().port);
 });
