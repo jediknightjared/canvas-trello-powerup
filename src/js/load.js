@@ -9,8 +9,9 @@ const loadingDiv = document.querySelector("#loading");
 const contentDiv = document.querySelector("#content");
 const statusDiv = document.querySelector("#status");
 
+const TRELLO_APP_KEY = "b5c06882ca740f9920dae402dfbb8341";
 const t = window.TrelloPowerUp.iframe({
-    appKey: "b5c06882ca740f9920dae402dfbb8341",
+    appKey: TRELLO_APP_KEY,
     appName: "Canvas PowerUp"
 });
 const socket = io();
@@ -276,12 +277,17 @@ async function createCardFromAssignment(assignment) {
         ? assignment.description.replace(/<h([1-6])>/g, (_, n) => "#".repeat(+n) + " ").replace(/<[^>]*>/g, "")
         : "";
 
-    const api = await t.getRestApi();
-    await api.post("/1/cards", {
+    const restApi = await t.getRestApi();
+    const token = await restApi.getToken();
+    const params = new URLSearchParams({
+        key: TRELLO_APP_KEY,
+        token,
         name,
         idList: listSelect.value,
         desc
     });
+    const response = await fetch(`https://api.trello.com/1/cards?${params}`, { method: "POST" });
+    if (!response.ok) throw new Error(`Trello API error: ${response.status}`);
 }
 
 // Server communication helper
