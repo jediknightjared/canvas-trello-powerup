@@ -219,7 +219,8 @@ importBtn.addEventListener("click", async () => {
             try {
                 await createCardFromAssignment(assignment);
                 succeeded++;
-            } catch {
+            } catch (err) {
+                console.error("Failed to create card for:", assignment.name, err);
                 failed.push(assignment.name);
             }
         }
