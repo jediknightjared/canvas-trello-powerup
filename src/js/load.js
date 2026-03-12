@@ -11,8 +11,8 @@ const statusDiv = document.querySelector("#status");
 
 const TRELLO_APP_KEY = "b5c06882ca740f9920dae402dfbb8341";
 const t = window.TrelloPowerUp.iframe({
-    appKey: TRELLO_APP_KEY,
-    appName: "Canvas PowerUp"
+  appKey: TRELLO_APP_KEY,
+  appName: "Canvas PowerUp"
 });
 const socket = io();
 let canvasToken;
@@ -22,19 +22,19 @@ let isImporting = false;
 
 // Load Trello lists into the list selector
 async function loadLists() {
-    try {
-        const lists = await t.lists("id", "name");
-        listSelect.innerHTML = '<option value="">Choose a list...</option>';
-        lists.forEach(list => {
-            const option = document.createElement("option");
-            option.value = list.id;
-            option.textContent = list.name;
-            listSelect.appendChild(option);
-        });
-    } catch (error) {
-        console.error("Error loading Trello lists:", error);
-        showError("Failed to load Trello lists.");
-    }
+  try {
+    const lists = await t.lists("id", "name");
+    listSelect.innerHTML = '<option value="">Choose a list...</option>';
+    lists.forEach(list => {
+      const option = document.createElement("option");
+      option.value = list.id;
+      option.textContent = list.name;
+      listSelect.appendChild(option);
+    });
+  } catch (error) {
+    console.error("Error loading Trello lists:", error);
+    showError("Failed to load Trello lists.");
+  }
 }
 
 listSelect.addEventListener("change", updateImportButton);
@@ -43,359 +43,362 @@ loadLists();
 
 // Initialize
 t.loadSecret("domain")
-    .then(domain => {
-        canvasDomain = domain;
-        return t.loadSecret("token");
-    })
-    .then(token => {
-        canvasToken = token;
-        if (token && canvasDomain) {
-            // Validate domain format
-            const domainRegex = /^([\w-]+\.instructure\.com|canvas\.[\w.-]+\.[\w]+)$/;
-            if (!domainRegex.test(canvasDomain)) {
-                showError(
-                    "Invalid Canvas domain format. Please use your institution's Canvas URL (e.g., university.instructure.com)."
-                );
-                return;
-            }
-            loadCourses();
-        } else {
-            let missing = [];
-            if (!canvasDomain) missing.push("Canvas domain");
-            if (!token) missing.push("API token");
-            showError(`${missing.join(" and ")} not configured. Please set them in the Power-Up settings.`);
-        }
-    });
+  .then(domain => {
+    canvasDomain = domain;
+    return t.loadSecret("token");
+  })
+  .then(token => {
+    canvasToken = token;
+    if (token && canvasDomain) {
+      // Validate domain format
+      const domainRegex = /^([\w-]+\.instructure\.com|canvas\.[\w.-]+\.[\w]+)$/;
+      if (!domainRegex.test(canvasDomain)) {
+        showError(
+          "Invalid Canvas domain format. Please use your institution's Canvas URL (e.g., university.instructure.com)."
+        );
+        return;
+      }
+      loadCourses();
+    } else {
+      let missing = [];
+      if (!canvasDomain) missing.push("Canvas domain");
+      if (!token) missing.push("API token");
+      showError(`${missing.join(" and ")} not configured. Please set them in the Power-Up settings.`);
+    }
+  });
 
 // Load courses from Canvas
 async function loadCourses() {
-    try {
-        const coursesUrl = `https://${canvasDomain}/api/v1/courses?access_token=${canvasToken}&enrollment_state=active&include[]=term`;
-        const response = await serverFetchJSON(coursesUrl);
+  try {
+    const coursesUrl = `https://${canvasDomain}/api/v1/courses?access_token=${canvasToken}&enrollment_state=active&include[]=term`;
+    const response = await serverFetchJSON(coursesUrl);
 
-        if (!Array.isArray(response)) {
-            throw new Error("Unexpected response from Canvas API");
-        }
-
-        // Filter to show only courses the user can access
-        const accessibleCourses = response.filter(
-            course => course.name && course.id && !course.access_restricted_by_date
-        );
-
-        if (accessibleCourses.length === 0) {
-            showError("No accessible courses found. Make sure your Canvas token has the correct permissions.");
-            return;
-        }
-
-        // Populate course dropdown
-        courseSelect.innerHTML = '<option value="">Choose a course...</option>';
-        accessibleCourses.forEach(course => {
-            const option = document.createElement("option");
-            option.value = course.id;
-            option.textContent = `${course.name} (${course.term?.name || "No Term"})`;
-            courseSelect.appendChild(option);
-        });
-
-        loadingDiv.style.display = "none";
-        contentDiv.style.display = "block";
-    } catch (error) {
-        console.error("Error loading courses:", error);
-        showError("Failed to load courses from Canvas. Please check your API token.");
+    if (!Array.isArray(response)) {
+      throw new Error("Unexpected response from Canvas API");
     }
+
+    // Filter to show only courses the user can access
+    const accessibleCourses = response.filter(
+      course => course.name && course.id && !course.access_restricted_by_date
+    );
+
+    if (accessibleCourses.length === 0) {
+      showError("No accessible courses found. Make sure your Canvas token has the correct permissions.");
+      return;
+    }
+
+    // Populate course dropdown
+    courseSelect.innerHTML = '<option value="">Choose a course...</option>';
+    accessibleCourses.forEach(course => {
+      const option = document.createElement("option");
+      option.value = course.id;
+      option.textContent = `${course.name} (${course.term?.name || "No Term"})`;
+      courseSelect.appendChild(option);
+    });
+
+    loadingDiv.style.display = "none";
+    contentDiv.style.display = "block";
+  } catch (error) {
+    console.error("Error loading courses:", error);
+    showError("Failed to load courses from Canvas. Please check your API token.");
+  }
 }
 
 // Handle course selection
 courseSelect.addEventListener("change", e => {
-    const courseId = e.target.value;
-    if (courseId) {
-        loadAssignments(courseId);
-    } else {
-        assignmentsSection.style.display = "none";
-    }
+  const courseId = e.target.value;
+  if (courseId) {
+    loadAssignments(courseId);
+  } else {
+    assignmentsSection.style.display = "none";
+  }
 });
 
 // Load assignments, quizzes, and discussions for selected course
 async function loadAssignments(courseId) {
-    try {
-        assignmentsList.innerHTML = '<div class="loading">Loading assignments...</div>';
+  try {
+    assignmentsList.innerHTML = '<div class="loading">Loading assignments...</div>';
 
-        const base = `https://${canvasDomain}/api/v1/courses/${courseId}`;
-        const tok = `access_token=${canvasToken}&per_page=100`;
+    const base = `https://${canvasDomain}/api/v1/courses/${courseId}`;
+    const tok = `access_token=${canvasToken}&per_page=100`;
 
-        const [assignmentsResult, quizzesResult, discussionsResult] = await Promise.allSettled([
-            serverFetchJSON(`${base}/assignments?${tok}&include[]=submission`),
-            serverFetchJSON(`${base}/quizzes?${tok}`),
-            serverFetchJSON(`${base}/discussion_topics?${tok}`)
-        ]);
+    const [assignmentsResult, quizzesResult, discussionsResult] = await Promise.allSettled([
+      serverFetchJSON(`${base}/assignments?${tok}&include[]=submission`),
+      serverFetchJSON(`${base}/quizzes?${tok}`),
+      serverFetchJSON(`${base}/discussion_topics?${tok}`)
+    ]);
 
-        const items = [];
+    const items = [];
 
-        if (assignmentsResult.status === "fulfilled" && Array.isArray(assignmentsResult.value)) {
-            for (const a of assignmentsResult.value) {
-                if (!a.name) continue;
-                items.push({
-                    name: a.name,
-                    description: a.description || "",
-                    due_at: a.due_at,
-                    submitted: ["submitted", "graded"].includes(a.submission?.workflow_state),
-                    type: "assignment"
-                });
-            }
-        }
-
-        if (quizzesResult.status === "fulfilled" && Array.isArray(quizzesResult.value)) {
-            for (const q of quizzesResult.value) {
-                if (!q.due_at) continue;
-                items.push({
-                    name: q.title,
-                    description: q.description || "",
-                    due_at: q.due_at,
-                    submitted: false,
-                    type: "quiz"
-                });
-            }
-        }
-
-        if (discussionsResult.status === "fulfilled" && Array.isArray(discussionsResult.value)) {
-            for (const d of discussionsResult.value) {
-                const due = d.assignment?.due_at || d.todo_date;
-                if (!due) continue;
-                items.push({
-                    name: d.title,
-                    description: d.message || "",
-                    due_at: due,
-                    submitted: false,
-                    type: "discussion"
-                });
-            }
-        }
-
-        items.sort((a, b) => {
-            if (!a.due_at && !b.due_at) return 0;
-            if (!a.due_at) return 1;
-            if (!b.due_at) return -1;
-            return new Date(a.due_at) - new Date(b.due_at);
+    if (assignmentsResult.status === "fulfilled" && Array.isArray(assignmentsResult.value)) {
+      for (const a of assignmentsResult.value) {
+        if (!a.name) continue;
+        items.push({
+          name: a.name,
+          description: a.description || "",
+          due_at: a.due_at,
+          submitted: ["submitted", "graded"].includes(a.submission?.workflow_state),
+          type: "assignment"
         });
-
-        currentAssignments = items;
-        displayAssignments(currentAssignments);
-        assignmentsSection.style.display = "block";
-    } catch (error) {
-        console.error("Error loading assignments:", error);
-        let errorMessage = "Failed to load assignments from Canvas.";
-
-        if (error.message.includes("403")) {
-            errorMessage =
-                "Access denied to course assignments. Your Canvas token may not have permission to view assignments for this course, or you may not be enrolled as an instructor.";
-        } else if (error.message.includes("401")) {
-            errorMessage = "Canvas API token is invalid or expired. Please update your token in the Power-Up settings.";
-        }
-
-        showError(errorMessage);
+      }
     }
+
+    if (quizzesResult.status === "fulfilled" && Array.isArray(quizzesResult.value)) {
+      for (const q of quizzesResult.value) {
+        if (!q.due_at) continue;
+        items.push({
+          name: q.title,
+          description: q.description || "",
+          due_at: q.due_at,
+          submitted: false,
+          type: "quiz"
+        });
+      }
+    }
+
+    if (discussionsResult.status === "fulfilled" && Array.isArray(discussionsResult.value)) {
+      for (const d of discussionsResult.value) {
+        const due = d.assignment?.due_at || d.todo_date;
+        if (!due) continue;
+        items.push({
+          name: d.title,
+          description: d.message || "",
+          due_at: due,
+          submitted: false,
+          type: "discussion"
+        });
+      }
+    }
+
+    items.sort((a, b) => {
+      if (!a.due_at && !b.due_at) return 0;
+      if (!a.due_at) return 1;
+      if (!b.due_at) return -1;
+      return new Date(a.due_at) - new Date(b.due_at);
+    });
+
+    currentAssignments = items;
+    displayAssignments(currentAssignments);
+    assignmentsSection.style.display = "block";
+  } catch (error) {
+    console.error("Error loading assignments:", error);
+    let errorMessage = "Failed to load assignments from Canvas.";
+
+    if (error.message.includes("403")) {
+      errorMessage =
+        "Access denied to course assignments. Your Canvas token may not have permission to view assignments for this course, or you may not be enrolled as an instructor.";
+    } else if (error.message.includes("401")) {
+      errorMessage = "Canvas API token is invalid or expired. Please update your token in the Power-Up settings.";
+    }
+
+    showError(errorMessage);
+  }
 }
 
 // Display assignments in the UI
 function displayAssignments(assignments) {
-    assignmentsList.innerHTML = "";
+  assignmentsList.innerHTML = "";
 
-    if (assignments.length === 0) {
-        assignmentsList.innerHTML =
-            '<div style="padding: 20px; text-align: center; color: #666;">No assignments found for this course.</div>';
-        importBtn.disabled = true;
-        return;
+  if (assignments.length === 0) {
+    assignmentsList.innerHTML =
+      '<div style="padding: 20px; text-align: center; color: #666;">No assignments found for this course.</div>';
+    importBtn.disabled = true;
+    return;
+  }
+
+  assignments.forEach((assignment, index) => {
+    const assignmentDiv = document.createElement("div");
+    assignmentDiv.className = "assignment-item";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.className = "assignment-checkbox";
+    checkbox.addEventListener("change", updateImportButton);
+    checkbox.dataset.index = index;
+
+    const infoDiv = document.createElement("div");
+    infoDiv.className = "assignment-info";
+
+    const titleDiv = document.createElement("div");
+    titleDiv.className = "assignment-title";
+    titleDiv.textContent = assignment.name;
+
+    const badgesDiv = document.createElement("div");
+    badgesDiv.className = "assignment-badges";
+    const typeBadge = document.createElement("span");
+    typeBadge.className = `badge badge-${assignment.type}`;
+    typeBadge.textContent = assignment.type.charAt(0).toUpperCase() + assignment.type.slice(1);
+    badgesDiv.appendChild(typeBadge);
+    if (assignment.submitted) {
+      const submittedBadge = document.createElement("span");
+      submittedBadge.className = "badge badge-submitted";
+      submittedBadge.textContent = "Submitted";
+      badgesDiv.appendChild(submittedBadge);
     }
 
-    assignments.forEach((assignment, index) => {
-        const assignmentDiv = document.createElement("div");
-        assignmentDiv.className = "assignment-item";
+    const dueDiv = document.createElement("div");
+    dueDiv.className = "assignment-due";
+    if (assignment.due_at) {
+      const dueDate = new Date(assignment.due_at);
+      dueDiv.textContent = `Due: ${dueDate.toLocaleDateString()} ${dueDate.toLocaleTimeString()}`;
+    } else {
+      dueDiv.textContent = "No due date";
+    }
 
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        checkbox.className = "assignment-checkbox";
-        checkbox.dataset.index = index;
+    const descDiv = document.createElement("div");
+    descDiv.className = "assignment-desc";
+    if (assignment.description) {
+      // Strip HTML tags for preview
+      descDiv.textContent = assignment.description.replace(/<[^>]*>/g, "").substring(0, 100) + "...";
+    }
 
-        const infoDiv = document.createElement("div");
-        infoDiv.className = "assignment-info";
+    infoDiv.appendChild(titleDiv);
+    infoDiv.appendChild(badgesDiv);
+    infoDiv.appendChild(dueDiv);
+    infoDiv.appendChild(descDiv);
 
-        const titleDiv = document.createElement("div");
-        titleDiv.className = "assignment-title";
-        titleDiv.textContent = assignment.name;
+    assignmentDiv.appendChild(checkbox);
+    assignmentDiv.appendChild(infoDiv);
 
-        const badgesDiv = document.createElement("div");
-        badgesDiv.className = "assignment-badges";
-        const typeBadge = document.createElement("span");
-        typeBadge.className = `badge badge-${assignment.type}`;
-        typeBadge.textContent = assignment.type.charAt(0).toUpperCase() + assignment.type.slice(1);
-        badgesDiv.appendChild(typeBadge);
-        if (assignment.submitted) {
-            const submittedBadge = document.createElement("span");
-            submittedBadge.className = "badge badge-submitted";
-            submittedBadge.textContent = "Submitted";
-            badgesDiv.appendChild(submittedBadge);
-        }
+    assignmentsList.appendChild(assignmentDiv);
+  });
 
-        const dueDiv = document.createElement("div");
-        dueDiv.className = "assignment-due";
-        if (assignment.due_at) {
-            const dueDate = new Date(assignment.due_at);
-            dueDiv.textContent = `Due: ${dueDate.toLocaleDateString()} ${dueDate.toLocaleTimeString()}`;
-        } else {
-            dueDiv.textContent = "No due date";
-        }
-
-        const descDiv = document.createElement("div");
-        descDiv.className = "assignment-desc";
-        if (assignment.description) {
-            // Strip HTML tags for preview
-            descDiv.textContent = assignment.description.replace(/<[^>]*>/g, "").substring(0, 100) + "...";
-        }
-
-        infoDiv.appendChild(titleDiv);
-        infoDiv.appendChild(badgesDiv);
-        infoDiv.appendChild(dueDiv);
-        infoDiv.appendChild(descDiv);
-
-        assignmentDiv.appendChild(checkbox);
-        assignmentDiv.appendChild(infoDiv);
-
-        assignmentsList.appendChild(assignmentDiv);
-    });
-
-    updateImportButton();
+  updateImportButton();
 }
 
 // Handle select all/none buttons
 selectAllBtn.addEventListener("click", () => {
-    const checkboxes = assignmentsList.querySelectorAll(".assignment-checkbox");
-    checkboxes.forEach(cb => (cb.checked = true));
-    updateImportButton();
+  const checkboxes = assignmentsList.querySelectorAll(".assignment-checkbox");
+  checkboxes.forEach(cb => (cb.checked = true));
+  updateImportButton();
 });
 
 selectNoneBtn.addEventListener("click", () => {
-    const checkboxes = assignmentsList.querySelectorAll(".assignment-checkbox");
-    checkboxes.forEach(cb => (cb.checked = false));
-    updateImportButton();
+  const checkboxes = assignmentsList.querySelectorAll(".assignment-checkbox");
+  checkboxes.forEach(cb => (cb.checked = false));
+  updateImportButton();
 });
 
 // Update import button state
 function updateImportButton() {
-    const checkedBoxes = assignmentsList.querySelectorAll(".assignment-checkbox:checked");
-    importBtn.disabled = checkedBoxes.length === 0 || !listSelect.value;
-    importBtn.textContent = `Import ${checkedBoxes.length} Selected to Trello`;
+  const checkedBoxes = assignmentsList.querySelectorAll(".assignment-checkbox:checked");
+  importBtn.disabled = checkedBoxes.length === 0 || !listSelect.value;
+  importBtn.textContent = `Import ${checkedBoxes.length} Selected to Trello`;
 }
 
 // Handle import button click
 importBtn.addEventListener("click", async () => {
-    const selectedIndexes = Array.from(assignmentsList.querySelectorAll(".assignment-checkbox:checked")).map(cb =>
-        parseInt(cb.dataset.index)
-    );
+  const selectedIndexes = Array.from(assignmentsList.querySelectorAll(".assignment-checkbox:checked")).map(cb =>
+    parseInt(cb.dataset.index)
+  );
 
-    if (selectedIndexes.length === 0) return;
-    if (!currentAssignments) return;
-    if (isImporting) return;
-    isImporting = true;
+  if (selectedIndexes.length === 0) return;
+  if (!currentAssignments) return;
+  if (isImporting) return;
+  isImporting = true;
 
-    try {
-        importBtn.disabled = true;
-        importBtn.textContent = "Importing...";
+  try {
+    importBtn.disabled = true;
+    importBtn.textContent = "Importing...";
 
-        const selectedAssignments = selectedIndexes.map(index => currentAssignments[index]);
+    const selectedAssignments = selectedIndexes.map(index => currentAssignments[index]);
 
-        // Create cards for selected assignments
-        let succeeded = 0;
-        const failed = [];
-        for (const assignment of selectedAssignments) {
-            try {
-                await createCardFromAssignment(assignment);
-                succeeded++;
-            } catch (err) {
-                console.error("Failed to create card for:", assignment.name, err);
-                failed.push(assignment.name);
-            }
-        }
-
-        if (failed.length === 0) {
-            showSuccess(`Successfully imported ${succeeded} assignment(s) to Trello!`);
-            importBtn.textContent = "Import Complete";
-            setTimeout(() => { t.closeModal(); }, 2000);
-        } else {
-            showError(`Imported ${succeeded}, failed ${failed.length}: ${failed.join(", ")}`);
-            importBtn.disabled = false;
-            importBtn.textContent = "Import Selected to Trello";
-        }
-    } catch (error) {
-        console.error("Error importing assignments:", error);
-        showError("Failed to import assignments. Please try again.");
-        importBtn.disabled = false;
-        importBtn.textContent = "Import Selected to Trello";
-    } finally {
-        isImporting = false;
+    // Create cards for selected assignments
+    let succeeded = 0;
+    const failed = [];
+    for (const assignment of selectedAssignments) {
+      try {
+        await createCardFromAssignment(assignment);
+        succeeded++;
+      } catch (err) {
+        console.error("Failed to create card for:", assignment.name, err);
+        failed.push(assignment.name);
+      }
     }
+
+    if (failed.length === 0) {
+      showSuccess(`Successfully imported ${succeeded} assignment(s) to Trello!`);
+      importBtn.textContent = "Import Complete";
+      setTimeout(() => {
+        t.closeModal();
+      }, 2000);
+    } else {
+      showError(`Imported ${succeeded}, failed ${failed.length}: ${failed.join(", ")}`);
+      importBtn.disabled = false;
+      importBtn.textContent = "Import Selected to Trello";
+    }
+  } catch (error) {
+    console.error("Error importing assignments:", error);
+    showError("Failed to import assignments. Please try again.");
+    importBtn.disabled = false;
+    importBtn.textContent = "Import Selected to Trello";
+  } finally {
+    isImporting = false;
+  }
 });
 
 // Create a Trello card from a Canvas assignment
 async function createCardFromAssignment(assignment) {
-    const name = assignment.name;
-    const desc = assignment.description
-        ? assignment.description.replace(/<h([1-6])>/g, (_, n) => "#".repeat(+n) + " ").replace(/<[^>]*>/g, "")
-        : "";
+  const name = assignment.name;
+  const desc = assignment.description
+    ? assignment.description.replace(/<h([1-6])>/g, (_, n) => "#".repeat(+n) + " ").replace(/<[^>]*>/g, "")
+    : "";
 
-    const restApi = await t.getRestApi();
-    if (!await restApi.isAuthorized()) {
-        await restApi.authorize({ scope: "read,write", expiration: "never" });
-    }
-    const token = await restApi.getToken();
-    const params = new URLSearchParams({
-        key: TRELLO_APP_KEY,
-        token,
-        name,
-        idList: listSelect.value,
-        desc
-    });
-    const response = await fetch(`https://api.trello.com/1/cards?${params}`, { method: "POST" });
-    if (!response.ok) throw new Error(`Trello API error: ${response.status}`);
+  const restApi = await t.getRestApi();
+  if (!(await restApi.isAuthorized())) {
+    await restApi.authorize({ scope: "read,write", expiration: "never" });
+  }
+  const token = await restApi.getToken();
+  const params = new URLSearchParams({
+    key: TRELLO_APP_KEY,
+    token,
+    name,
+    idList: listSelect.value,
+    desc
+  });
+  const response = await fetch(`https://api.trello.com/1/cards?${params}`, { method: "POST" });
+  if (!response.ok) throw new Error(`Trello API error: ${response.status}`);
 }
 
 // Server communication helper
 function serverFetchJSON(url, options) {
-    return new Promise((resolve, reject) => {
-        const id = Date.now() + Math.random();
-        socket.emit("fetch-json", id, url, options);
+  return new Promise((resolve, reject) => {
+    const id = Date.now() + Math.random();
+    socket.emit("fetch-json", id, url, options);
 
-        const timeout = setTimeout(() => {
-            reject(new Error("Request timeout"));
-        }, 30000);
+    const timeout = setTimeout(() => {
+      reject(new Error("Request timeout"));
+    }, 30000);
 
-        const handler = (responseId, data) => {
-            if (responseId === id) {
-                socket.off("fetch-json-response", handler);
-                clearTimeout(timeout);
-                if (data && data.error) {
-                    reject(new Error(data.error));
-                } else {
-                    resolve(data);
-                }
-            }
-        };
+    const handler = (responseId, data) => {
+      if (responseId === id) {
+        socket.off("fetch-json-response", handler);
+        clearTimeout(timeout);
+        if (data && data.error) {
+          reject(new Error(data.error));
+        } else {
+          resolve(data);
+        }
+      }
+    };
 
-        socket.on("fetch-json-response", handler);
-    });
+    socket.on("fetch-json-response", handler);
+  });
 }
 
 // UI helper functions
 function showError(message) {
-    const div = document.createElement("div");
-    div.className = "error";
-    div.textContent = message || "";
-    statusDiv.replaceChildren(div);
-    loadingDiv.style.display = "none";
-    contentDiv.style.display = "block";
+  const div = document.createElement("div");
+  div.className = "error";
+  div.textContent = message || "";
+  statusDiv.replaceChildren(div);
+  loadingDiv.style.display = "none";
+  contentDiv.style.display = "block";
 }
 
 function showSuccess(message) {
-    const div = document.createElement("div");
-    div.className = "success";
-    div.textContent = message || "";
-    statusDiv.replaceChildren(div);
+  const div = document.createElement("div");
+  div.className = "success";
+  div.textContent = message || "";
+  statusDiv.replaceChildren(div);
 }
