@@ -354,7 +354,9 @@ async function createCardFromAssignment(assignment) {
     token,
     name,
     idList: listSelect.value,
-    desc
+    desc,
+    due: assignment.due_at ? new Date(assignment.due_at).toISOString() : undefined,
+    dueComplete: assignment.submitted ? "true" : "false"
   });
   const response = await fetch(`https://api.trello.com/1/cards?${params}`, { method: "POST" });
   if (!response.ok) throw new Error(`Trello API error: ${response.status}`);
