@@ -7,14 +7,14 @@ const socket = io();
 
 socket.on("connect", () => {});
 
-socket.on("disconnect", socket => {});
+socket.on("disconnect", (socket) => {});
 
 TrelloPowerUp.initialize({
     "show-settings": function (t) {
         return t.popup({
             title: "Custom Fields Settings",
             url: "/settings.html",
-            height: 184
+            height: 184,
         });
     },
     "card-from-url": async function (t, options) {
@@ -32,7 +32,7 @@ TrelloPowerUp.initialize({
 
             if (!token) {
                 throw new Error(
-                    "Canvas token not configured. Please set your Canvas API token in the Power-Up settings."
+                    "Canvas token not configured. Please set your Canvas API token in the Power-Up settings.",
                 );
             }
 
@@ -43,16 +43,20 @@ TrelloPowerUp.initialize({
             const data = await serverFetchJSON(fetchURL);
 
             if (!data || (!data.name && !data.title)) {
-                throw new Error("Invalid response from Canvas API - no title found");
+                throw new Error(
+                    "Invalid response from Canvas API - no title found",
+                );
             }
 
             const description = data.description
-                ? data.description.replaceAll(/<h([1-6])>/g, (_, n) => "#".repeat(+n) + " ").replaceAll(/<.+?>/g, "")
+                ? data.description
+                      .replaceAll(/<h([1-6])>/g, (_, n) => "#".repeat(+n) + " ")
+                      .replaceAll(/<.+?>/g, "")
                 : "";
 
             return {
                 name: data.name || data.title,
-                desc: description
+                desc: description,
             };
         } catch (error) {
             console.error("Error in card-from-url:", error);
@@ -65,17 +69,17 @@ TrelloPowerUp.initialize({
         return [
             {
                 text: "Load Assignments",
-                condition: "admin",
+                condition: "always",
                 callback: function (t, options) {
                     t.modal({
                         title: "Load Assignments",
                         url: "/loadAssignments.html",
-                        fullscreen: true
+                        fullscreen: true,
                     });
-                }
-            }
+                },
+            },
         ];
-    }
+    },
 });
 
 const buffer = {};
@@ -93,7 +97,11 @@ function serverFetchJSON(url, options) {
 socket.on("fetch-json-response", (id, data) => {
     if (buffer[id]) {
         if (data && data.error) {
-            buffer[id].reject(new Error(data.error + (data.details ? ": " + data.details : "")));
+            buffer[id].reject(
+                new Error(
+                    data.error + (data.details ? ": " + data.details : ""),
+                ),
+            );
         } else {
             buffer[id].resolve(data);
         }
