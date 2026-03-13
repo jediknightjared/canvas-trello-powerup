@@ -78,6 +78,48 @@ TrelloPowerUp.initialize({
       },
     ];
   },
+  "card-badges": async function (t, options) {
+    let cardAttachments = options.attachments;
+    const token = await t.loadSecret("token");
+
+    if (!token) {
+      throw new Error(
+        "Canvas token not configured. Please set your Canvas API token in the Power-Up settings.",
+      );
+    }
+
+    // check to see if there are any attachments that match the pattern of a canvas assignment URL
+    let badges = [];
+
+    for (const attachment of cardAttachments) {
+      const urlRegex =
+        /^https:\/\/([\w.-]+)\.instructure\.com\/courses\/([0-9]+)\/(assignments|quizzes|discussion_topics)\/([0-9]+)(?:[/?#].*)?$/;
+      if (urlRegex.test(attachment.url)) {
+        const [, domain, courseID] = urlRegex.exec(attachment.url);
+
+        const base = `https://${domain}.instructure.com/api/v1/`;
+
+        const {
+          id: courseId,
+          enrollments,
+          name: courseName,
+        } = await serverFetchJSON(
+          `${base}courses/${courseID}?access_token=${token}`,
+        );
+        const userId = enrollments[0].user_id;
+        const { hexcode: color } = await serverFetchJSON(
+          `${base}users/${userId}/color/course_${courseId}?access_token=${token}`,
+        );
+
+        badges.push({
+          text: courseName,
+          color: color || "blue",
+        });
+      }
+    }
+
+    return badges;
+  },
 });
 
 const buffer = {};
