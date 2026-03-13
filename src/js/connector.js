@@ -118,6 +118,11 @@ TrelloPowerUp.initialize({
       }
     }
 
+    badges.push({
+      text: "Test Badge",
+      color: "#FFFFFF",
+    });
+
     return badges;
   },
 });
