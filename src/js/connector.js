@@ -79,43 +79,47 @@ TrelloPowerUp.initialize({
     ];
   },
   "card-badges": async function (t, options) {
-    let cardAttachments = options.attachments;
-    const token = await t.loadSecret("token");
+    const cardAttachments = options.attachments;
 
-    if (!token) {
-      throw new Error(
-        "Canvas token not configured. Please set your Canvas API token in the Power-Up settings.",
-      );
-    }
+    try {
+      const token = await t.loadSecret("token");
 
-    // check to see if there are any attachments that match the pattern of a canvas assignment URL
-    let badges = [];
+      if (!token) {
+        throw new Error(
+          "Canvas token not configured. Please set your Canvas API token in the Power-Up settings.",
+        );
+      }
 
-    for (const attachment of cardAttachments) {
-      const urlRegex =
-        /^https:\/\/([\w.-]+)\.instructure\.com\/courses\/([0-9]+)\/(assignments|quizzes|discussion_topics)\/([0-9]+)(?:[/?#].*)?$/;
-      if (urlRegex.test(attachment.url)) {
+      // check to see if there are any attachments that match the pattern of a canvas assignment URL
+      let badges = [];
+
+      for (const attachment of cardAttachments) {
+        const urlRegex =
+          /^https:\/\/([\w.-]+)\.instructure\.com\/courses\/([0-9]+)\/(assignments|quizzes|discussion_topics)\/([0-9]+)(?:[/?#].*)?$/;
+
+        if (!urlRegex.test(attachment.url)) continue;
+
         const [, domain, courseID] = urlRegex.exec(attachment.url);
-
         const base = `https://${domain}.instructure.com/api/v1/`;
+        const courseURL = `${base}courses/${courseID}?access_token=${token}`;
 
         const {
           id: courseId,
           enrollments,
           name: courseName,
-        } = await serverFetchJSON(
-          `${base}courses/${courseID}?access_token=${token}`,
-        );
+        } = await serverFetchJSON(courseURL);
         const userId = enrollments[0].user_id;
-        const { hexcode: color } = await serverFetchJSON(
-          `${base}users/${userId}/color/course_${courseId}?access_token=${token}`,
-        );
+
+        const colorURL = `${base}users/${userId}/color/course_${courseId}?access_token=${token}`;
+        const { hexcode: color } = await serverFetchJSON(colorURL);
 
         badges.push({
           text: courseName,
           color: color || "blue",
         });
       }
+    } catch (error) {
+      console.error("Error in card-badges: ", error);
     }
 
     badges.push({
