@@ -12,7 +12,7 @@ const statusDiv = document.querySelector("#status");
 const TRELLO_APP_KEY = "b5c06882ca740f9920dae402dfbb8341";
 const t = window.TrelloPowerUp.iframe({
   appKey: TRELLO_APP_KEY,
-  appName: "Canvas PowerUp"
+  appName: "Canvas PowerUp",
 });
 const socket = io();
 let canvasToken;
@@ -25,7 +25,7 @@ async function loadLists() {
   try {
     const lists = await t.lists("id", "name");
     listSelect.innerHTML = '<option value="">Choose a list...</option>';
-    lists.forEach(list => {
+    lists.forEach((list) => {
       const option = document.createElement("option");
       option.value = list.id;
       option.textContent = list.name;
@@ -43,18 +43,18 @@ loadLists();
 
 // Initialize
 t.loadSecret("domain")
-  .then(domain => {
+  .then((domain) => {
     canvasDomain = domain;
     return t.loadSecret("token");
   })
-  .then(token => {
+  .then((token) => {
     canvasToken = token;
     if (token && canvasDomain) {
       // Validate domain format
       const domainRegex = /^([\w-]+\.instructure\.com|canvas\.[\w.-]+\.[\w]+)$/;
       if (!domainRegex.test(canvasDomain)) {
         showError(
-          "Invalid Canvas domain format. Please use your institution's Canvas URL (e.g., university.instructure.com)."
+          "Invalid Canvas domain format. Please use your institution's Canvas URL (e.g., university.instructure.com).",
         );
         return;
       }
@@ -63,7 +63,9 @@ t.loadSecret("domain")
       let missing = [];
       if (!canvasDomain) missing.push("Canvas domain");
       if (!token) missing.push("API token");
-      showError(`${missing.join(" and ")} not configured. Please set them in the Power-Up settings.`);
+      showError(
+        `${missing.join(" and ")} not configured. Please set them in the Power-Up settings.`,
+      );
     }
   });
 
@@ -79,17 +81,19 @@ async function loadCourses() {
 
     // Filter to show only courses the user can access
     const accessibleCourses = response.filter(
-      course => course.name && course.id && !course.access_restricted_by_date
+      (course) => course.name && course.id && !course.access_restricted_by_date,
     );
 
     if (accessibleCourses.length === 0) {
-      showError("No accessible courses found. Make sure your Canvas token has the correct permissions.");
+      showError(
+        "No accessible courses found. Make sure your Canvas token has the correct permissions.",
+      );
       return;
     }
 
     // Populate course dropdown
     courseSelect.innerHTML = '<option value="">Choose a course...</option>';
-    accessibleCourses.forEach(course => {
+    accessibleCourses.forEach((course) => {
       const option = document.createElement("option");
       option.value = course.id;
       option.textContent = `${course.name} (${course.term?.name || "No Term"})`;
@@ -100,12 +104,14 @@ async function loadCourses() {
     contentDiv.style.display = "block";
   } catch (error) {
     console.error("Error loading courses:", error);
-    showError("Failed to load courses from Canvas. Please check your API token.");
+    showError(
+      "Failed to load courses from Canvas. Please check your API token.",
+    );
   }
 }
 
 // Handle course selection
-courseSelect.addEventListener("change", e => {
+courseSelect.addEventListener("change", (e) => {
   const courseId = e.target.value;
   if (courseId) {
     loadAssignments(courseId);
@@ -117,33 +123,44 @@ courseSelect.addEventListener("change", e => {
 // Load assignments, quizzes, and discussions for selected course
 async function loadAssignments(courseId) {
   try {
-    assignmentsList.innerHTML = '<div class="loading">Loading assignments...</div>';
+    assignmentsList.innerHTML =
+      '<div class="loading">Loading assignments...</div>';
 
     const base = `https://${canvasDomain}/api/v1/courses/${courseId}`;
     const tok = `access_token=${canvasToken}&per_page=100`;
 
-    const [assignmentsResult, quizzesResult, discussionsResult] = await Promise.allSettled([
-      serverFetchJSON(`${base}/assignments?${tok}&include[]=submission`),
-      serverFetchJSON(`${base}/quizzes?${tok}`),
-      serverFetchJSON(`${base}/discussion_topics?${tok}`)
-    ]);
+    const [assignmentsResult, quizzesResult, discussionsResult] =
+      await Promise.allSettled([
+        serverFetchJSON(`${base}/assignments?${tok}&include[]=submission`),
+        serverFetchJSON(`${base}/quizzes?${tok}`),
+        serverFetchJSON(`${base}/discussion_topics?${tok}`),
+      ]);
 
     const items = [];
 
-    if (assignmentsResult.status === "fulfilled" && Array.isArray(assignmentsResult.value)) {
+    if (
+      assignmentsResult.status === "fulfilled" &&
+      Array.isArray(assignmentsResult.value)
+    ) {
       for (const a of assignmentsResult.value) {
         if (!a.name) continue;
         items.push({
           name: a.name,
           description: a.description || "",
           due_at: a.due_at,
-          submitted: ["submitted", "graded"].includes(a.submission?.workflow_state),
-          type: "assignment"
+          submitted: ["submitted", "graded"].includes(
+            a.submission?.workflow_state,
+          ),
+          type: "assignment",
+          url: a.html_url,
         });
       }
     }
 
-    if (quizzesResult.status === "fulfilled" && Array.isArray(quizzesResult.value)) {
+    if (
+      quizzesResult.status === "fulfilled" &&
+      Array.isArray(quizzesResult.value)
+    ) {
       for (const q of quizzesResult.value) {
         if (!q.due_at) continue;
         items.push({
@@ -151,12 +168,16 @@ async function loadAssignments(courseId) {
           description: q.description || "",
           due_at: q.due_at,
           submitted: false,
-          type: "quiz"
+          type: "quiz",
+          url: q.html_url,
         });
       }
     }
 
-    if (discussionsResult.status === "fulfilled" && Array.isArray(discussionsResult.value)) {
+    if (
+      discussionsResult.status === "fulfilled" &&
+      Array.isArray(discussionsResult.value)
+    ) {
       for (const d of discussionsResult.value) {
         const due = d.assignment?.due_at || d.todo_date;
         if (!due) continue;
@@ -165,7 +186,8 @@ async function loadAssignments(courseId) {
           description: d.message || "",
           due_at: due,
           submitted: false,
-          type: "discussion"
+          type: "discussion",
+          url: d.html_url,
         });
       }
     }
@@ -188,7 +210,8 @@ async function loadAssignments(courseId) {
       errorMessage =
         "Access denied to course assignments. Your Canvas token may not have permission to view assignments for this course, or you may not be enrolled as an instructor.";
     } else if (error.message.includes("401")) {
-      errorMessage = "Canvas API token is invalid or expired. Please update your token in the Power-Up settings.";
+      errorMessage =
+        "Canvas API token is invalid or expired. Please update your token in the Power-Up settings.";
     }
 
     showError(errorMessage);
@@ -227,7 +250,8 @@ function displayAssignments(assignments) {
     badgesDiv.className = "assignment-badges";
     const typeBadge = document.createElement("span");
     typeBadge.className = `badge badge-${assignment.type}`;
-    typeBadge.textContent = assignment.type.charAt(0).toUpperCase() + assignment.type.slice(1);
+    typeBadge.textContent =
+      assignment.type.charAt(0).toUpperCase() + assignment.type.slice(1);
     badgesDiv.appendChild(typeBadge);
     if (assignment.submitted) {
       const submittedBadge = document.createElement("span");
@@ -249,7 +273,9 @@ function displayAssignments(assignments) {
     descDiv.className = "assignment-desc";
     if (assignment.description) {
       // Strip HTML tags for preview
-      descDiv.textContent = assignment.description.replace(/<[^>]*>/g, "").substring(0, 100) + "...";
+      descDiv.textContent =
+        assignment.description.replace(/<[^>]*>/g, "").substring(0, 100) +
+        "...";
     }
 
     infoDiv.appendChild(titleDiv);
@@ -269,28 +295,30 @@ function displayAssignments(assignments) {
 // Handle select all/none buttons
 selectAllBtn.addEventListener("click", () => {
   const checkboxes = assignmentsList.querySelectorAll(".assignment-checkbox");
-  checkboxes.forEach(cb => (cb.checked = true));
+  checkboxes.forEach((cb) => (cb.checked = true));
   updateImportButton();
 });
 
 selectNoneBtn.addEventListener("click", () => {
   const checkboxes = assignmentsList.querySelectorAll(".assignment-checkbox");
-  checkboxes.forEach(cb => (cb.checked = false));
+  checkboxes.forEach((cb) => (cb.checked = false));
   updateImportButton();
 });
 
 // Update import button state
 function updateImportButton() {
-  const checkedBoxes = assignmentsList.querySelectorAll(".assignment-checkbox:checked");
+  const checkedBoxes = assignmentsList.querySelectorAll(
+    ".assignment-checkbox:checked",
+  );
   importBtn.disabled = checkedBoxes.length === 0 || !listSelect.value;
   importBtn.textContent = `Import ${checkedBoxes.length} Selected to Trello`;
 }
 
 // Handle import button click
 importBtn.addEventListener("click", async () => {
-  const selectedIndexes = Array.from(assignmentsList.querySelectorAll(".assignment-checkbox:checked")).map(cb =>
-    parseInt(cb.dataset.index)
-  );
+  const selectedIndexes = Array.from(
+    assignmentsList.querySelectorAll(".assignment-checkbox:checked"),
+  ).map((cb) => parseInt(cb.dataset.index));
 
   if (selectedIndexes.length === 0) return;
   if (!currentAssignments) return;
@@ -301,7 +329,9 @@ importBtn.addEventListener("click", async () => {
     importBtn.disabled = true;
     importBtn.textContent = "Importing...";
 
-    const selectedAssignments = selectedIndexes.map(index => currentAssignments[index]);
+    const selectedAssignments = selectedIndexes.map(
+      (index) => currentAssignments[index],
+    );
 
     // Create cards for selected assignments
     let succeeded = 0;
@@ -317,13 +347,17 @@ importBtn.addEventListener("click", async () => {
     }
 
     if (failed.length === 0) {
-      showSuccess(`Successfully imported ${succeeded} assignment(s) to Trello!`);
+      showSuccess(
+        `Successfully imported ${succeeded} assignment(s) to Trello!`,
+      );
       importBtn.textContent = "Import Complete";
       setTimeout(() => {
         t.closeModal();
       }, 2000);
     } else {
-      showError(`Imported ${succeeded}, failed ${failed.length}: ${failed.join(", ")}`);
+      showError(
+        `Imported ${succeeded}, failed ${failed.length}: ${failed.join(", ")}`,
+      );
       importBtn.disabled = false;
       importBtn.textContent = "Import Selected to Trello";
     }
@@ -341,7 +375,9 @@ importBtn.addEventListener("click", async () => {
 async function createCardFromAssignment(assignment) {
   const name = assignment.name;
   const desc = assignment.description
-    ? assignment.description.replace(/<h([1-6])>/g, (_, n) => "#".repeat(+n) + " ").replace(/<[^>]*>/g, "")
+    ? assignment.description
+        .replace(/<h([1-6])>/g, (_, n) => "#".repeat(+n) + " ")
+        .replace(/<[^>]*>/g, "")
     : "";
 
   const restApi = await t.getRestApi();
@@ -355,10 +391,15 @@ async function createCardFromAssignment(assignment) {
     name,
     idList: listSelect.value,
     desc,
-    due: assignment.due_at ? new Date(assignment.due_at).toISOString() : undefined,
-    dueComplete: assignment.submitted ? "true" : "false"
+    due: assignment.due_at
+      ? new Date(assignment.due_at).toISOString()
+      : undefined,
+    dueComplete: assignment.submitted ? "true" : "false",
+    urlSource: assignment.url,
   });
-  const response = await fetch(`https://api.trello.com/1/cards?${params}`, { method: "POST" });
+  const response = await fetch(`https://api.trello.com/1/cards?${params}`, {
+    method: "POST",
+  });
   if (!response.ok) throw new Error(`Trello API error: ${response.status}`);
 }
 
