@@ -79,54 +79,48 @@ TrelloPowerUp.initialize({
     ];
   },
   "card-badges": async function (t, options) {
-    let badges = [];
+    return [
+      {
+        text: "static",
+        color: "green",
+      },
+      {
+        dynamic: async function () {
+          const cardAttachments = options.attachments;
 
-    // const cardAttachments = options.attachments;
+          try {
+            const token = await t.loadSecret("token");
 
-    // try {
-    //   const token = await t.loadSecret("token");
+            if (!token) {
+              throw new Error(
+                "Canvas token not configured. Please set your Canvas API token in the Power-Up settings.",
+              );
+            }
 
-    //   if (!token) {
-    //     throw new Error(
-    //       "Canvas token not configured. Please set your Canvas API token in the Power-Up settings.",
-    //     );
-    //   }
+            for (const attachment of cardAttachments) {
+              const urlRegex =
+                /^https:\/\/([\w.-]+)\.instructure\.com\/courses\/([0-9]+)\/(assignments|quizzes|discussion_topics)\/([0-9]+)(?:[/?#].*)?$/;
 
-    //   for (const attachment of cardAttachments) {
-    //     const urlRegex =
-    //       /^https:\/\/([\w.-]+)\.instructure\.com\/courses\/([0-9]+)\/(assignments|quizzes|discussion_topics)\/([0-9]+)(?:[/?#].*)?$/;
+              if (!urlRegex.test(attachment.url)) continue;
 
-    //     if (!urlRegex.test(attachment.url)) continue;
+              const [, domain, courseID] = urlRegex.exec(attachment.url);
+              const base = `https://${domain}.instructure.com/api/v1/`;
+              const courseURL = `${base}courses/${courseID}?access_token=${token}`;
 
-    //     const [, domain, courseID] = urlRegex.exec(attachment.url);
-    //     const base = `https://${domain}.instructure.com/api/v1/`;
-    //     const courseURL = `${base}courses/${courseID}?access_token=${token}`;
+              const { name: courseName } = await serverFetchJSON(courseURL);
 
-    //     const {
-    //       id: courseId,
-    //       enrollments,
-    //       name: courseName,
-    //     } = await serverFetchJSON(courseURL);
-    //     const userId = enrollments[0].user_id;
-
-    //     const colorURL = `${base}users/${userId}/color/course_${courseId}?access_token=${token}`;
-    //     const { hexcode: color } = await serverFetchJSON(colorURL);
-
-    //     badges.push({
-    //       text: courseName,
-    //       color: color || "blue",
-    //     });
-    //   }
-    // } catch (error) {
-    //   console.error("Error in card-badges: ", error);
-    // }
-
-    badges.push({
-      text: "Test Badge",
-      color: "blue",
-    });
-
-    return badges;
+              return {
+                text: courseName,
+                color: "blue",
+                refresh: 30,
+              };
+            }
+          } catch (error) {
+            console.error("Error in card-badges: ", error);
+          }
+        },
+      },
+    ];
   },
 });
 
