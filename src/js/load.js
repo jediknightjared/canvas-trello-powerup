@@ -138,12 +138,36 @@ async function loadAssignments(courseId) {
 
     const items = [];
 
+    const discussionTopics =
+      discussionsResult.status === "fulfilled" &&
+      Array.isArray(discussionsResult.value)
+        ? discussionsResult.value
+        : [];
+
+    const assignmentIds =
+      assignmentsResult.status === "fulfilled" &&
+      Array.isArray(assignmentsResult.value)
+        ? new Set(
+            assignmentsResult.value
+              .filter((assignment) => assignment.id != null)
+              .map((assignment) => String(assignment.id)),
+          )
+        : new Set();
+
     if (
       assignmentsResult.status === "fulfilled" &&
       Array.isArray(assignmentsResult.value)
     ) {
       for (const a of assignmentsResult.value) {
         if (!a.name) continue;
+        const isDiscussion =
+          a.submission_types?.includes("discussion_topic") ||
+          Boolean(a.discussion_topic) ||
+          discussionTopics.some(
+            (discussion) =>
+              discussion.assignment_id != null &&
+              String(discussion.assignment_id) === String(a.id),
+          );
         items.push({
           name: a.name,
           description: a.description || "",
@@ -151,7 +175,7 @@ async function loadAssignments(courseId) {
           submitted: ["submitted", "graded"].includes(
             a.submission?.workflow_state,
           ),
-          type: "assignment",
+          type: isDiscussion ? "discussion" : "assignment",
           url: a.html_url,
         });
       }
@@ -174,11 +198,16 @@ async function loadAssignments(courseId) {
       }
     }
 
-    if (
-      discussionsResult.status === "fulfilled" &&
-      Array.isArray(discussionsResult.value)
-    ) {
-      for (const d of discussionsResult.value) {
+    if (discussionTopics.length > 0) {
+      for (const d of discussionTopics) {
+        // Graded discussions are also returned by /assignments. Keep the
+        // assignment record as the canonical item and avoid adding it twice.
+        if (
+          d.assignment_id != null &&
+          assignmentIds.has(String(d.assignment_id))
+        ) {
+          continue;
+        }
         const due = d.assignment?.due_at || d.todo_date;
         if (!due) continue;
         items.push({
