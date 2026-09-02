@@ -2,6 +2,7 @@ const listSelect = document.querySelector("#list");
 const courseSelect = document.querySelector("#course");
 const assignmentsSection = document.querySelector("#assignments-section");
 const assignmentsList = document.querySelector("#assignments-list");
+const hideCompletedCheckbox = document.querySelector("#hide-completed");
 const selectAllBtn = document.querySelector("#select-all");
 const selectNoneBtn = document.querySelector("#select-none");
 const importBtn = document.querySelector("#import-selected");
@@ -18,6 +19,7 @@ const socket = io();
 let canvasToken;
 let canvasDomain;
 let currentAssignments;
+let selectedAssignmentIndexes = new Set();
 let isImporting = false;
 
 const SUBMITTED_WORKFLOW_STATES = new Set([
@@ -136,6 +138,7 @@ courseSelect.addEventListener("change", (e) => {
 // Load assignments, quizzes, and discussions for selected course
 async function loadAssignments(courseId) {
   try {
+    selectedAssignmentIndexes.clear();
     assignmentsList.innerHTML =
       '<div class="loading">Loading assignments...</div>';
 
@@ -201,6 +204,7 @@ async function loadAssignments(courseId) {
           description: a.description || "",
           due_at: a.due_at,
           submitted: isSubmitted(a.submission),
+          assignmentBacked: true,
           type: isDiscussion ? "discussion" : isQuiz ? "quiz" : "assignment",
           url: a.html_url,
         });
@@ -219,6 +223,7 @@ async function loadAssignments(courseId) {
           description: q.description || "",
           due_at: q.due_at,
           submitted: false,
+          assignmentBacked: false,
           type: "quiz",
           url: q.html_url,
         });
@@ -242,6 +247,7 @@ async function loadAssignments(courseId) {
           description: d.message || "",
           due_at: due,
           submitted: false,
+          assignmentBacked: false,
           type: "discussion",
           url: d.html_url,
         });
@@ -255,8 +261,11 @@ async function loadAssignments(courseId) {
       return new Date(a.due_at) - new Date(b.due_at);
     });
 
-    currentAssignments = items;
-    displayAssignments(currentAssignments);
+    currentAssignments = items.map((assignment, index) => ({
+      ...assignment,
+      sourceIndex: index,
+    }));
+    displayCurrentAssignments();
     assignmentsSection.style.display = "block";
   } catch (error) {
     console.error("Error loading assignments:", error);
@@ -275,25 +284,41 @@ async function loadAssignments(courseId) {
 }
 
 // Display assignments in the UI
+function displayCurrentAssignments() {
+  const assignmentsToDisplay = hideCompletedCheckbox.checked
+    ? currentAssignments.filter(
+        (assignment) =>
+          !assignment.assignmentBacked || !assignment.submitted,
+      )
+    : currentAssignments;
+
+  displayAssignments(assignmentsToDisplay);
+}
+
 function displayAssignments(assignments) {
   assignmentsList.innerHTML = "";
 
   if (assignments.length === 0) {
     assignmentsList.innerHTML =
-      '<div style="padding: 20px; text-align: center; color: #666;">No assignments found for this course.</div>';
-    importBtn.disabled = true;
+      `<div style="padding: 20px; text-align: center; color: #666;">${
+        hideCompletedCheckbox.checked
+          ? "No incomplete assignments found for this course."
+          : "No assignments found for this course."
+      }</div>`;
+    updateImportButton();
     return;
   }
 
-  assignments.forEach((assignment, index) => {
+  assignments.forEach((assignment) => {
     const assignmentDiv = document.createElement("div");
     assignmentDiv.className = "assignment-item";
 
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.className = "assignment-checkbox";
-    checkbox.addEventListener("change", updateImportButton);
-    checkbox.dataset.index = index;
+    checkbox.addEventListener("change", handleAssignmentSelectionChange);
+    checkbox.dataset.index = assignment.sourceIndex;
+    checkbox.checked = selectedAssignmentIndexes.has(assignment.sourceIndex);
 
     const infoDiv = document.createElement("div");
     infoDiv.className = "assignment-info";
@@ -348,14 +373,30 @@ function displayAssignments(assignments) {
   updateImportButton();
 }
 
+hideCompletedCheckbox.addEventListener("change", displayCurrentAssignments);
+
+function handleAssignmentSelectionChange(event) {
+  const index = Number(event.currentTarget.dataset.index);
+  if (event.currentTarget.checked) {
+    selectedAssignmentIndexes.add(index);
+  } else {
+    selectedAssignmentIndexes.delete(index);
+  }
+  updateImportButton();
+}
+
 // Handle select all/none buttons
 selectAllBtn.addEventListener("click", () => {
   const checkboxes = assignmentsList.querySelectorAll(".assignment-checkbox");
-  checkboxes.forEach((cb) => (cb.checked = true));
+  checkboxes.forEach((cb) => {
+    cb.checked = true;
+    selectedAssignmentIndexes.add(Number(cb.dataset.index));
+  });
   updateImportButton();
 });
 
 selectNoneBtn.addEventListener("click", () => {
+  selectedAssignmentIndexes.clear();
   const checkboxes = assignmentsList.querySelectorAll(".assignment-checkbox");
   checkboxes.forEach((cb) => (cb.checked = false));
   updateImportButton();

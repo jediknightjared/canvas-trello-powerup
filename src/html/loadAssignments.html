@@ -60,6 +60,14 @@
         display: flex;
         gap: 4px;
       }
+      .assignment-filters {
+        margin: 10px 0;
+      }
+      .assignment-filter {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
       .badge {
         font-size: 0.75em;
         padding: 1px 6px;
@@ -124,6 +132,12 @@
 
       <div id="assignments-section" style="display: none">
         <h3>Course Items</h3>
+        <div class="assignment-filters">
+          <label class="assignment-filter" for="hide-completed">
+            <input type="checkbox" id="hide-completed" />
+            Hide completed assignments
+          </label>
+        </div>
         <div id="assignments-list" class="assignments-list">
           <!-- Assignments will be loaded here -->
         </div>
