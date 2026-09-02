@@ -20,6 +20,19 @@ let canvasDomain;
 let currentAssignments;
 let isImporting = false;
 
+const SUBMITTED_WORKFLOW_STATES = new Set([
+  "submitted",
+  "graded",
+  "pending_review",
+]);
+
+function isSubmitted(submission) {
+  return (
+    Boolean(submission?.submitted_at) ||
+    SUBMITTED_WORKFLOW_STATES.has(submission?.workflow_state)
+  );
+}
+
 // Load Trello lists into the list selector
 async function loadLists() {
   try {
@@ -73,7 +86,7 @@ t.loadSecret("domain")
 async function loadCourses() {
   try {
     const coursesUrl = `https://${canvasDomain}/api/v1/courses?access_token=${canvasToken}&enrollment_state=active&include[]=term`;
-    const response = await serverFetchJSON(coursesUrl);
+    const response = await fetchCanvasCollection(coursesUrl);
 
     if (!Array.isArray(response)) {
       throw new Error("Unexpected response from Canvas API");
@@ -131,9 +144,9 @@ async function loadAssignments(courseId) {
 
     const [assignmentsResult, quizzesResult, discussionsResult] =
       await Promise.allSettled([
-        serverFetchJSON(`${base}/assignments?${tok}&include[]=submission`),
-        serverFetchJSON(`${base}/quizzes?${tok}`),
-        serverFetchJSON(`${base}/discussion_topics?${tok}`),
+        fetchCanvasCollection(`${base}/assignments?${tok}&include[]=submission`),
+        fetchCanvasCollection(`${base}/quizzes?${tok}`),
+        fetchCanvasCollection(`${base}/discussion_topics?${tok}`),
       ]);
 
     const items = [];
@@ -154,6 +167,16 @@ async function loadAssignments(courseId) {
           )
         : new Set();
 
+    const quizAssignments =
+      assignmentsResult.status === "fulfilled" &&
+      Array.isArray(assignmentsResult.value)
+        ? new Map(
+            assignmentsResult.value
+              .filter((assignment) => assignment.quiz_id != null)
+              .map((assignment) => [String(assignment.quiz_id), assignment]),
+          )
+        : new Map();
+
     if (
       assignmentsResult.status === "fulfilled" &&
       Array.isArray(assignmentsResult.value)
@@ -168,14 +191,17 @@ async function loadAssignments(courseId) {
               discussion.assignment_id != null &&
               String(discussion.assignment_id) === String(a.id),
           );
+        const isQuiz =
+          !isDiscussion &&
+          (a.is_quiz_assignment ||
+            a.quiz_id != null ||
+            a.submission_types?.includes("online_quiz"));
         items.push({
           name: a.name,
           description: a.description || "",
           due_at: a.due_at,
-          submitted: ["submitted", "graded"].includes(
-            a.submission?.workflow_state,
-          ),
-          type: isDiscussion ? "discussion" : "assignment",
+          submitted: isSubmitted(a.submission),
+          type: isDiscussion ? "discussion" : isQuiz ? "quiz" : "assignment",
           url: a.html_url,
         });
       }
@@ -186,6 +212,7 @@ async function loadAssignments(courseId) {
       Array.isArray(quizzesResult.value)
     ) {
       for (const q of quizzesResult.value) {
+        if (quizAssignments.has(String(q.id))) continue;
         if (!q.due_at) continue;
         items.push({
           name: q.title,
@@ -430,6 +457,29 @@ async function createCardFromAssignment(assignment) {
     method: "POST",
   });
   if (!response.ok) throw new Error(`Trello API error: ${response.status}`);
+}
+
+// Load all pages from a Canvas collection. The server proxy returns the JSON
+// body but not response headers, so pagination is driven by page size.
+async function fetchCanvasCollection(url, perPage = 100) {
+  const results = [];
+  let page = 1;
+
+  while (true) {
+    const pageUrl = new URL(url);
+    pageUrl.searchParams.set("page", String(page));
+    pageUrl.searchParams.set("per_page", String(perPage));
+
+    const pageResults = await serverFetchJSON(pageUrl.toString());
+    if (!Array.isArray(pageResults)) {
+      throw new Error("Unexpected response from Canvas API");
+    }
+
+    results.push(...pageResults);
+    if (pageResults.length < perPage) return results;
+
+    page++;
+  }
 }
 
 // Server communication helper
