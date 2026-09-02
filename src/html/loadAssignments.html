@@ -60,10 +60,22 @@
         display: flex;
         gap: 4px;
       }
-      .assignment-filters {
+      .filters-section {
         margin: 10px 0;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background: #f8f9fa;
       }
-      .assignment-filter {
+      .filters-section h3 {
+        margin: 0 0 10px;
+      }
+      .filters-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+      .filter-option {
         display: inline-flex;
         align-items: center;
         gap: 6px;
@@ -130,14 +142,18 @@
         </select>
       </div>
 
-      <div id="assignments-section" style="display: none">
-        <h3>Course Items</h3>
-        <div class="assignment-filters">
-          <label class="assignment-filter" for="hide-completed">
+      <div class="filters-section">
+        <h3>Filters</h3>
+        <div class="filters-list">
+          <label class="filter-option" for="hide-completed">
             <input type="checkbox" id="hide-completed" />
             Hide completed assignments
           </label>
         </div>
+      </div>
+
+      <div id="assignments-section" style="display: none">
+        <h3>Course Items</h3>
         <div id="assignments-list" class="assignments-list">
           <!-- Assignments will be loaded here -->
         </div>

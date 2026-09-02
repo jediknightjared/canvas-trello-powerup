@@ -285,6 +285,8 @@ async function loadAssignments(courseId) {
 
 // Display assignments in the UI
 function displayCurrentAssignments() {
+  if (!currentAssignments) return;
+
   const assignmentsToDisplay = hideCompletedCheckbox.checked
     ? currentAssignments.filter(
         (assignment) =>
