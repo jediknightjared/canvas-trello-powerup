@@ -511,6 +511,23 @@ test("controller applies assignment type and due-week filters", async () => {
   assert.equal(elements.filtersPanel.hidden, true);
 });
 
+test("changing filters before selecting a course keeps the course prompt", async () => {
+  const { controller, elements } = createControllerHarness();
+  await controller.initialize();
+
+  elements.hideCompletedCheckbox.checked = true;
+  await elements.hideCompletedCheckbox.dispatchEvent("change");
+  assert.match(elements.assignmentsList.innerHTML, /Select a course/);
+
+  elements.assignmentTypeSelect.value = "quiz";
+  await elements.assignmentTypeSelect.dispatchEvent("change");
+  assert.match(elements.assignmentsList.innerHTML, /Select a course/);
+
+  elements.dueWeekInput.value = "2024-01-01";
+  await elements.dueWeekInput.dispatchEvent("change");
+  assert.match(elements.assignmentsList.innerHTML, /Select a course/);
+});
+
 test("controller hides assignments already present on the board", async () => {
   const { controller, elements } = createControllerHarness({
     getBoardCards: async () => [

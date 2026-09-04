@@ -7,6 +7,12 @@ import {
 import { createAssignmentView } from "./assignment-view.mjs";
 import { createUi } from "./ui.mjs";
 
+const STATUS_MESSAGES = {
+  selectCourse: "Select a course to view assignments.",
+  loadingAssignments: "Loading assignments...",
+  unableToLoadAssignments: "Unable to load assignments for this course.",
+};
+
 export function createLoadController({
   document,
   elements,
@@ -45,6 +51,7 @@ export function createLoadController({
   const assignmentView = createAssignmentView({ document, assignmentsList });
   const state = {
     assignments: [],
+    selectedCourseId: "",
     selectedIndexes: new Set(),
     importedUrls: new Set(),
     duplicateCheckAvailable: false,
@@ -110,7 +117,7 @@ export function createLoadController({
 
   function setDuplicateCheckLoading() {
     hideImportedCheckbox.disabled = true;
-    duplicateCheckStatus.hidden = false;
+    duplicateCheckStatus.hidden = false;"
     duplicateCheckStatus.className = "filter-status";
     duplicateCheckStatus.textContent = "Checking Trello cards...";
   }
@@ -148,11 +155,12 @@ export function createLoadController({
   }
 
   async function loadAssignments(courseId) {
+    state.selectedCourseId = courseId;
     state.assignments = [];
     state.selectedIndexes.clear();
     setSelectionControlsEnabled(false);
     updateImportButton();
-    assignmentView.renderMessage("Loading assignments...", "loading");
+    assignmentView.renderMessage(STATUS_MESSAGES.loadingAssignments, "loading");
 
     try {
       const sources = await canvasApi.getCourseItems(courseId);
@@ -160,12 +168,17 @@ export function createLoadController({
       displayCurrentAssignments();
     } catch (error) {
       logger.error("Error loading assignments:", error);
-      assignmentView.renderMessage("Unable to load assignments for this course.");
+      assignmentView.renderMessage(STATUS_MESSAGES.unableToLoadAssignments);
       ui.showError(getAssignmentsError(error));
     }
   }
 
   function displayCurrentAssignments() {
+    if (!state.selectedCourseId) {
+      renderCoursePrompt();
+      return;
+    }
+
     const assignments = filterVisibleAssignments(
       state.assignments,
       hideCompletedCheckbox.checked,
@@ -296,9 +309,14 @@ export function createLoadController({
   }
 
   function showCoursePrompt() {
+    state.selectedCourseId = "";
     state.assignments = [];
     state.selectedIndexes.clear();
-    assignmentView.renderMessage("Select a course to view assignments.");
+    renderCoursePrompt();
+  }
+
+  function renderCoursePrompt() {
+    assignmentView.renderMessage(STATUS_MESSAGES.selectCourse);
     setSelectionControlsEnabled(false);
     updateImportButton();
   }
