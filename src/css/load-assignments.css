@@ -1,0 +1,302 @@
+html,
+body {
+  min-height: 100%;
+}
+
+html[data-color-mode="light"] {
+  color-scheme: light;
+}
+
+html[data-color-mode="dark"] {
+  color-scheme: dark;
+  --load-surface: var(--ds-surface, #1d2125);
+  --load-surface-neutral: var(--ds-background-neutral, #22272b);
+  --load-border: var(--ds-border, #738496);
+  --load-text: var(--ds-text, #b6c2cf);
+  --load-text-subtle: var(--ds-text-subtle, #9fadbc);
+  --load-text-inverse: var(--ds-text-inverse, #172b4d);
+  --load-blue-background: var(--ds-background-accent-blue-subtlest, #0c2e5e);
+  --load-blue-text: var(--ds-text-accent-blue-bolder, #85b8ff);
+  --load-purple-background: var(
+    --ds-background-accent-purple-subtlest,
+    #352c63
+  );
+  --load-purple-text: var(--ds-text-accent-purple-bolder, #b8acf6);
+  --load-green-background: var(--ds-background-accent-green-subtlest, #164b35);
+  --load-green-text: var(--ds-text-accent-green-bolder, #7ee2b8);
+  --load-orange-background: var(
+    --ds-background-accent-orange-subtlest,
+    #5f3811
+  );
+  --load-orange-text: var(--ds-text-accent-orange-bolder, #f6c27a);
+  --load-danger-background: var(--ds-background-danger, #5d1f1a);
+  --load-danger-text: var(--ds-text-danger, #ff9c8f);
+  --load-success-background: var(--ds-background-success, #164b35);
+  --load-success-text: var(--ds-text-success, #7ee2b8);
+  --load-neutral-bold-background: var(--ds-background-neutral-bold, #b6c2cf);
+}
+
+:root {
+  --load-surface: var(--ds-surface, #ffffff);
+  --load-surface-neutral: var(--ds-background-neutral, #f7f8f9);
+  --load-border: var(--ds-border, #dfe1e6);
+  --load-text: var(--ds-text, #172b4d);
+  --load-text-subtle: var(--ds-text-subtle, #5e6c84);
+  --load-text-inverse: var(--ds-text-inverse, #ffffff);
+  --load-blue-background: var(--ds-background-accent-blue-subtlest, #deebff);
+  --load-blue-text: var(--ds-text-accent-blue-bolder, #0747a6);
+  --load-purple-background: var(
+    --ds-background-accent-purple-subtlest,
+    #eae6ff
+  );
+  --load-purple-text: var(--ds-text-accent-purple-bolder, #403294);
+  --load-green-background: var(--ds-background-accent-green-subtlest, #e3fcef);
+  --load-green-text: var(--ds-text-accent-green-bolder, #216e4e);
+  --load-orange-background: var(
+    --ds-background-accent-orange-subtlest,
+    #fff0b3
+  );
+  --load-orange-text: var(--ds-text-accent-orange-bolder, #974f0c);
+  --load-danger-background: var(--ds-background-danger, #ffebe6);
+  --load-danger-text: var(--ds-text-danger, #ae2e24);
+  --load-success-background: var(--ds-background-success, #dcfff1);
+  --load-success-text: var(--ds-text-success, #216e4e);
+  --load-neutral-bold-background: var(--ds-background-neutral-bold, #172b4d);
+}
+
+body {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 24px 28px 28px;
+  color: var(--load-text);
+  background: var(--load-surface);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
+#content {
+  width: min(100%, 1440px);
+  margin: 0 auto;
+}
+
+.loading {
+  padding: 32px 20px;
+  color: var(--load-text-subtle);
+  text-align: center;
+}
+
+.course-section {
+  margin: 0 0 24px;
+}
+
+.course-section label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--load-text);
+  font-weight: 600;
+}
+
+.course-section select {
+  width: min(100%, 680px);
+}
+
+.filters-section {
+  margin: 30px 0 24px;
+  padding: 18px 20px;
+  border: 1px solid var(--load-border);
+  border-radius: 6px;
+  background: var(--load-surface-neutral);
+}
+
+.filters-section h3,
+#assignments-section > h3 {
+  margin: 0 0 16px;
+  color: var(--load-text);
+  font-size: 1.1rem;
+  line-height: 1.3;
+}
+
+.filters-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+
+.filter-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--load-text);
+  font-weight: 600;
+}
+
+.filter-option input {
+  margin: 0;
+}
+
+.assignments-list {
+  max-height: clamp(320px, 48vh, 560px);
+  overflow-y: auto;
+  border: 1px solid var(--load-border);
+  border-radius: 6px;
+  background: var(--load-surface);
+}
+
+.empty-state {
+  padding: 36px 20px;
+  color: var(--load-text-subtle);
+  text-align: center;
+}
+
+.assignment-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--load-border);
+}
+
+.assignment-item:last-child {
+  border-bottom: none;
+}
+
+.assignment-checkbox {
+  flex: 0 0 auto;
+  margin: 3px 0 0;
+}
+
+.assignment-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.assignment-title {
+  color: var(--load-text);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.assignment-due {
+  margin-top: 8px;
+  color: var(--load-text-subtle);
+  font-size: 0.9em;
+}
+
+.assignment-desc {
+  margin-top: 6px;
+  overflow: hidden;
+  color: var(--load-text-subtle);
+  font-size: 0.85em;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assignment-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 0;
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.75em;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.badge-assignment {
+  background: var(--load-blue-background);
+  color: var(--load-blue-text);
+}
+
+.badge-quiz {
+  background: var(--load-purple-background);
+  color: var(--load-purple-text);
+}
+
+.badge-discussion {
+  background: var(--load-green-background);
+  color: var(--load-green-text);
+}
+
+.badge-submitted {
+  background: var(--load-orange-background);
+  color: var(--load-orange-text);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.import-tooltip-container {
+  position: relative;
+  display: inline-block;
+}
+
+.import-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  z-index: 1;
+  width: max-content;
+  max-width: 240px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: var(--load-neutral-bold-background);
+  color: var(--load-text-inverse);
+  font-size: 12px;
+  line-height: 16px;
+  text-align: left;
+  transform: translateX(-50%);
+}
+
+.import-tooltip[hidden] {
+  display: none;
+}
+
+#import-selected[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.error,
+.success {
+  margin: 20px 0 0;
+  padding: 12px 14px;
+  border-radius: 4px;
+}
+
+.error {
+  color: var(--load-danger-text);
+  background: var(--load-danger-background);
+}
+
+.success {
+  color: var(--load-success-text);
+  background: var(--load-success-background);
+}
+
+@media (max-width: 640px) {
+  body {
+    padding: 18px 16px 22px;
+  }
+
+  .filters-section {
+    padding: 16px;
+  }
+
+  .assignment-item {
+    padding: 14px;
+  }
+}

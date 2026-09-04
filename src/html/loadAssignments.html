@@ -2,157 +2,28 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <link
+      rel="stylesheet"
+      href="https://p.trellocdn.com/@atlaskit-themes.min.css"
+    />
     <link rel="stylesheet" href="https://p.trellocdn.com/power-up.css" />
-    <link rel="stylesheet" href="../css/settings.css" />
+    <link rel="stylesheet" href="../css/load-assignments.css" />
     <script
       src="https://p.trellocdn.com/power-up.min.js"
       crossorigin="anonymous"
     ></script>
+    <script>
+      window.canvasPowerUp = window.TrelloPowerUp.iframe({
+        appKey: "b5c06882ca740f9920dae402dfbb8341",
+        appName: "Canvas PowerUp",
+      });
+    </script>
     <script
       src="https://cdn.socket.io/4.6.0/socket.io.min.js"
       integrity="sha384-c79GN5VsunZvi+Q/WObgk2in0CbZsHnjEqvFxC5DxHn9lTfNce2WW6h2pH6u/kF+"
       crossorigin="anonymous"
     ></script>
     <title>Load Canvas Assignments</title>
-    <style>
-      .loading {
-        text-align: center;
-        padding: 20px;
-      }
-      .course-section {
-        margin: 20px 0;
-      }
-      .assignments-list {
-        max-height: 400px;
-        overflow-y: auto;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-      }
-      .empty-state {
-        padding: 20px;
-        text-align: center;
-        color: #666;
-      }
-      .assignment-item {
-        padding: 10px;
-        border-bottom: 1px solid #eee;
-        display: flex;
-        align-items: center;
-      }
-      .assignment-item:last-child {
-        border-bottom: none;
-      }
-      .assignment-checkbox {
-        margin-right: 10px;
-      }
-      .assignment-info {
-        flex: 1;
-      }
-      .assignment-title {
-        font-weight: bold;
-      }
-      .assignment-due {
-        color: #666;
-        font-size: 0.9em;
-      }
-      .assignment-desc {
-        color: #888;
-        font-size: 0.8em;
-        margin-top: 4px;
-      }
-      .assignment-badges {
-        margin: 2px 0 4px;
-        display: flex;
-        gap: 4px;
-      }
-      .filters-section {
-        margin: 10px 0;
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        background: #f8f9fa;
-      }
-      .filters-section h3 {
-        margin: 0 0 10px;
-      }
-      .filters-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-      }
-      .filter-option {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-      }
-      .badge {
-        font-size: 0.75em;
-        padding: 1px 6px;
-        border-radius: 10px;
-        font-weight: 600;
-      }
-      .badge-assignment {
-        background: #e3f2fd;
-        color: #1565c0;
-      }
-      .badge-quiz {
-        background: #f3e5f5;
-        color: #6a1b9a;
-      }
-      .badge-discussion {
-        background: #e8f5e9;
-        color: #2e7d32;
-      }
-      .badge-submitted {
-        background: #fff3e0;
-        color: #e65100;
-      }
-      .actions {
-        margin-top: 20px;
-        text-align: center;
-      }
-      .import-tooltip-container {
-        position: relative;
-        display: inline-block;
-      }
-      .import-tooltip {
-        position: absolute;
-        bottom: calc(100% + 8px);
-        left: 50%;
-        z-index: 1;
-        width: max-content;
-        max-width: 240px;
-        padding: 6px 8px;
-        border-radius: 4px;
-        background: #172b4d;
-        color: #fff;
-        font-size: 12px;
-        line-height: 16px;
-        text-align: left;
-        transform: translateX(-50%);
-      }
-      .import-tooltip[hidden] {
-        display: none;
-      }
-      #import-selected[aria-disabled="true"] {
-        cursor: not-allowed;
-        opacity: 0.5;
-      }
-      .error {
-        color: #d32f2f;
-        background: #ffebee;
-        padding: 10px;
-        border-radius: 4px;
-        margin: 10px 0;
-      }
-      .success {
-        color: #2e7d32;
-        background: #e8f5e8;
-        padding: 10px;
-        border-radius: 4px;
-        margin: 10px 0;
-      }
-    </style>
   </head>
   <body>
     <div id="loading" class="loading">

@@ -3,10 +3,14 @@ import { createLoadController } from "./load-controller.mjs";
 import { createTrelloApi } from "./trello-api.mjs";
 
 const TRELLO_APP_KEY = "b5c06882ca740f9920dae402dfbb8341";
-const trello = window.TrelloPowerUp.iframe({
-  appKey: TRELLO_APP_KEY,
-  appName: "Canvas PowerUp",
-});
+const trello =
+  window.canvasPowerUp ||
+  window.TrelloPowerUp.iframe({
+    appKey: TRELLO_APP_KEY,
+    appName: "Canvas PowerUp",
+  });
+
+syncModalTheme(trello);
 
 const elements = {
   listSelect: document.querySelector("#list"),
@@ -46,3 +50,29 @@ const controller = createLoadController({
 });
 
 controller.initialize();
+
+function syncModalTheme(trello) {
+  if (typeof trello.updateModal !== "function") return;
+
+  const context =
+    typeof trello.getContext === "function" ? trello.getContext() : null;
+  const initialTheme = context?.theme || context?.initialTheme;
+  const fallback = initialTheme === "dark" ? "#1d2125" : "#ffffff";
+  const accentColor =
+    typeof trello.getComputedColorToken === "function"
+      ? trello.getComputedColorToken("elevation.surface", fallback)
+      : fallback;
+
+  trello.updateModal({ accentColor });
+
+  if (typeof trello.subscribeToThemeChanges === "function") {
+    trello.subscribeToThemeChanges((theme) => {
+      const themeFallback = theme === "dark" ? "#1d2125" : "#ffffff";
+      const themeAccentColor =
+        typeof trello.getComputedColorToken === "function"
+          ? trello.getComputedColorToken("elevation.surface", themeFallback)
+          : themeFallback;
+      trello.updateModal({ accentColor: themeAccentColor });
+    });
+  }
+}
