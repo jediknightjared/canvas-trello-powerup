@@ -1,13 +1,12 @@
 const assert = require("node:assert/strict");
-const fs = require("node:fs");
-const path = require("node:path");
 const test = require("node:test");
-const vm = require("node:vm");
 
-const loadScript = fs.readFileSync(
-  path.join(__dirname, "..", "src", "js", "load.js"),
-  "utf8",
-);
+const modules = Promise.all([
+  import("../src/js/assignment-mapper.mjs"),
+  import("../src/js/canvas-api.mjs"),
+  import("../src/js/load-controller.mjs"),
+  import("../src/js/trello-api.mjs"),
+]);
 
 class FakeElement {
   constructor(tagName) {
@@ -49,11 +48,11 @@ class FakeElement {
     this.listeners.set(eventName, handlers);
   }
 
-  dispatchEvent(eventName, event = { target: this }) {
+  async dispatchEvent(eventName, event = { target: this }) {
     event.currentTarget = this;
-    for (const handler of this.listeners.get(eventName) || []) {
-      handler(event);
-    }
+    await Promise.all(
+      (this.listeners.get(eventName) || []).map((handler) => handler(event)),
+    );
   }
 
   querySelectorAll(selector) {
@@ -83,11 +82,48 @@ class FakeElement {
   }
 }
 
+function createElements() {
+  return {
+    listSelect: new FakeElement("select"),
+    courseSelect: new FakeElement("select"),
+    assignmentsSection: new FakeElement("section"),
+    assignmentsList: new FakeElement("div"),
+    hideCompletedCheckbox: new FakeElement("input"),
+    selectAllBtn: new FakeElement("button"),
+    selectNoneBtn: new FakeElement("button"),
+    importBtn: new FakeElement("button"),
+    loadingDiv: new FakeElement("div"),
+    contentDiv: new FakeElement("div"),
+    statusDiv: new FakeElement("div"),
+  };
+}
+
+function createDocument(elements) {
+  return {
+    querySelector(selector) {
+      const lookup = {
+        "#list": "listSelect",
+        "#course": "courseSelect",
+        "#assignments-section": "assignmentsSection",
+        "#assignments-list": "assignmentsList",
+        "#hide-completed": "hideCompletedCheckbox",
+        "#select-all": "selectAllBtn",
+        "#select-none": "selectNoneBtn",
+        "#import-selected": "importBtn",
+        "#loading": "loadingDiv",
+        "#content": "contentDiv",
+        "#status": "statusDiv",
+      };
+      return elements[lookup[selector]];
+    },
+    createElement(tagName) {
+      return new FakeElement(tagName);
+    },
+  };
+}
+
 function textContentOf(element) {
-  return [
-    element.textContent,
-    ...element.children.map(textContentOf),
-  ].join("");
+  return [element.textContent, ...element.children.map(textContentOf)].join("");
 }
 
 function createSocket(responseForUrl = () => []) {
@@ -114,87 +150,76 @@ function createSocket(responseForUrl = () => []) {
   };
 }
 
-function createHarness({ responseForUrl, lists = [] } = {}) {
-  const elements = new Map(
-    [
-      ["#list", new FakeElement("select")],
-      ["#course", new FakeElement("select")],
-      ["#assignments-section", new FakeElement("section")],
-      ["#assignments-list", new FakeElement("div")],
-      ["#hide-completed", new FakeElement("input")],
-      ["#select-all", new FakeElement("button")],
-      ["#select-none", new FakeElement("button")],
-      ["#import-selected", new FakeElement("button")],
-      ["#loading", new FakeElement("div")],
-      ["#content", new FakeElement("div")],
-      ["#status", new FakeElement("div")],
-    ],
-  );
+function createCanvasHarness(responseForUrl) {
   const socket = createSocket(responseForUrl);
-  const cards = [];
-  const restApi = {
-    isAuthorized: async () => false,
-    authorize: async () => {},
-    getToken: async () => "trello-token",
-  };
-  const trello = {
-    lists: async () => lists,
-    loadSecret: () => new Promise(() => {}),
-    getRestApi: async () => restApi,
-    closeModal: () => {},
-  };
-
-  const document = {
-    querySelector(selector) {
-      return elements.get(selector);
-    },
-    createElement(tagName) {
-      return new FakeElement(tagName);
-    },
-  };
-
-  const context = vm.createContext({
-    Array,
-    Boolean,
-    Date,
-    Error,
-    Map,
-    Math,
-    Promise,
-    Set,
-    String,
-    URL,
-    URLSearchParams,
-    clearTimeout,
-    console: { error() {}, log() {} },
-    document,
-    fetch: async (url, options) => {
-      cards.push({ url, options });
-      return { ok: true, status: 200 };
-    },
-    io: () => socket,
-    parseInt,
-    queueMicrotask,
-    setTimeout,
-    window: {
-      TrelloPowerUp: {
-        iframe: () => trello,
-      },
-    },
+  const { createCanvasApi } = requireModule("canvas");
+  const api = createCanvasApi({
+    socket,
+    getCredentials: () => ({
+      domain: "university.instructure.com",
+      token: "canvas-token",
+    }),
   });
-
-  vm.runInContext(loadScript, context, {
-    filename: path.join(__dirname, "..", "src", "js", "load.js"),
-  });
-
-  return { context, elements, socket, cards, restApi };
+  return { api, socket };
 }
 
-function canvasResponse(url) {
-  const pathName = url.pathname;
+function createControllerHarness({
+  items = createCourseItems(),
+  createCard,
+  getCourseItems,
+  getCourses,
+  getLists,
+  loadCredentials,
+} = {}) {
+  const elements = createElements();
+  const document = createDocument(elements);
+  const cards = [];
+  const canvasApi = {
+    getCourses:
+      getCourses ||
+      (async () => [
+        { id: 123, name: "Computer Science", term: { name: "Fall" } },
+      ]),
+    getCourseItems: getCourseItems || (async () => items),
+  };
+  const trelloApi = {
+    getLists:
+      getLists || (async () => [{ id: "list-1", name: "Inbox" }]),
+    createCard: async (assignment, listId) => {
+      cards.push({ assignment, listId });
+      if (createCard) return createCard(assignment, listId);
+    },
+  };
+  const { createLoadController } = requireModule("controller");
+  const controller = createLoadController({
+    document,
+    elements,
+    canvasApi,
+    trelloApi,
+    loadCredentials:
+      loadCredentials ||
+      (async () => ({
+        domain: "university.instructure.com",
+        token: "canvas-token",
+      })),
+    closeModal: () => {},
+    logger: { error() {} },
+  });
 
-  if (pathName.endsWith("/assignments")) {
-    return [
+  return { cards, controller, elements, trelloApi };
+}
+
+let loadedModules;
+function requireModule(name) {
+  if (!loadedModules) {
+    throw new Error(`Modules are not loaded yet; await modules before using ${name}`);
+  }
+  return loadedModules[name];
+}
+
+function createCourseItems() {
+  return {
+    assignments: [
       {
         id: 1,
         name: "Essay",
@@ -222,11 +247,8 @@ function canvasResponse(url) {
         html_url: "https://canvas.example/assignments/3",
         submission: null,
       },
-    ];
-  }
-
-  if (pathName.endsWith("/quizzes")) {
-    return [
+    ],
+    quizzes: [
       {
         id: 20,
         title: "Quiz assignment",
@@ -240,11 +262,8 @@ function canvasResponse(url) {
         due_at: "2024-01-04T12:00:00Z",
         html_url: "https://canvas.example/quizzes/21",
       },
-    ];
-  }
-
-  if (pathName.endsWith("/discussion_topics")) {
-    return [
+    ],
+    discussions: [
       {
         id: 30,
         title: "Graded discussion",
@@ -258,40 +277,41 @@ function canvasResponse(url) {
         todo_date: "2024-01-05T12:00:00Z",
         html_url: "https://canvas.example/discussion_topics/31",
       },
-    ];
-  }
-
-  throw new Error(`Unexpected Canvas URL: ${url}`);
+    ],
+  };
 }
 
-test("isSubmitted recognizes submitted timestamps and workflow states", () => {
-  const { context } = createHarness();
-
-  assert.equal(context.isSubmitted({ submitted_at: "2024-01-01" }), true);
-  assert.equal(context.isSubmitted({ workflow_state: "graded" }), true);
-  assert.equal(context.isSubmitted({ workflow_state: "pending_review" }), true);
-  assert.equal(context.isSubmitted({ workflow_state: "unsubmitted" }), false);
-  assert.equal(context.isSubmitted(null), false);
+test.before(async () => {
+  const [mapper, canvas, controller, trello] = await modules;
+  loadedModules = { mapper, canvas, controller, trello };
 });
 
-test("fetchCanvasCollection loads all pages and returns one combined array", async () => {
-  const harness = createHarness({
-    responseForUrl: ({ searchParams }) => {
-      const page = searchParams.get("page");
-      if (page === "1") return ["first", "second"];
-      if (page === "2") return ["third"];
-      throw new Error(`Unexpected page: ${page}`);
-    },
+test("isSubmitted recognizes submitted timestamps and workflow states", () => {
+  const { isSubmitted } = requireModule("mapper");
+
+  assert.equal(isSubmitted({ submitted_at: "2024-01-01" }), true);
+  assert.equal(isSubmitted({ workflow_state: "graded" }), true);
+  assert.equal(isSubmitted({ workflow_state: "pending_review" }), true);
+  assert.equal(isSubmitted({ workflow_state: "unsubmitted" }), false);
+  assert.equal(isSubmitted(null), false);
+});
+
+test("fetchCollection loads all pages and returns one combined array", async () => {
+  const { api, socket } = createCanvasHarness(({ searchParams }) => {
+    const page = searchParams.get("page");
+    if (page === "1") return ["first", "second"];
+    if (page === "2") return ["third"];
+    throw new Error(`Unexpected page: ${page}`);
   });
 
-  const results = await harness.context.fetchCanvasCollection(
+  const results = await api.fetchCollection(
     "https://canvas.example/api/v1/items?access_token=secret",
     2,
   );
 
   assert.deepEqual(Array.from(results), ["first", "second", "third"]);
   assert.deepEqual(
-    harness.socket.requests.map(({ url }) => {
+    socket.requests.map(({ url }) => {
       const parsed = new URL(url);
       return [
         parsed.searchParams.get("page"),
@@ -305,145 +325,202 @@ test("fetchCanvasCollection loads all pages and returns one combined array", asy
   );
 });
 
-test("fetchCanvasCollection rejects non-array Canvas responses", async () => {
-  const { context } = createHarness({
-    responseForUrl: () => ({ not: "an array" }),
-  });
+test("fetchCollection rejects non-array Canvas responses", async () => {
+  const { api } = createCanvasHarness(() => ({ not: "an array" }));
 
   await assert.rejects(
-    context.fetchCanvasCollection("https://canvas.example/api/v1/items"),
+    api.fetchCollection("https://canvas.example/api/v1/items"),
     /Unexpected response from Canvas API/,
   );
 });
 
-test(
-  "loadAssignments merges and deduplicates Canvas item types, then sorts by due date",
-  async () => {
-    const harness = createHarness({ responseForUrl: canvasResponse });
+test("mergeCourseItems deduplicates and sorts Canvas item types", () => {
+  const { mergeCourseItems, filterVisibleAssignments } = requireModule("mapper");
+  const items = mergeCourseItems(createCourseItems());
 
-    await harness.context.loadAssignments("123");
+  assert.deepEqual(
+    items.map(({ name, type, submitted }) => ({ name, type, submitted })),
+    [
+      { name: "Graded discussion", type: "discussion", submitted: false },
+      { name: "Quiz assignment", type: "quiz", submitted: false },
+      { name: "Essay", type: "assignment", submitted: true },
+      { name: "Standalone quiz", type: "quiz", submitted: false },
+      { name: "Ungraded discussion", type: "discussion", submitted: false },
+    ],
+  );
+  assert.equal(filterVisibleAssignments(items, true).length, 4);
+});
 
-    const rows = harness.elements.get("#assignments-list").children;
-    assert.equal(rows.length, 5);
-    assert.deepEqual(
-      Array.from(
-        rows,
-        (row) => textContentOf(row).trim().split("Due:")[0].trim(),
-      ),
-      [
-        "Graded discussionDiscussion",
-        "Quiz assignmentQuiz",
-        "EssayAssignmentSubmitted",
-        "Standalone quizQuiz",
-        "Ungraded discussionDiscussion",
-      ],
-    );
-    assert.equal(
-      harness.elements.get("#assignments-section").style.display,
-      "block",
-    );
+test("controller renders course items and preserves the hide-completed behavior", async () => {
+  const { controller, elements } = createControllerHarness();
+  await controller.initialize();
+  await controller.loadAssignments("123");
 
-    const checkboxes = harness.elements
-      .get("#assignments-list")
-      .querySelectorAll(".assignment-checkbox");
-    assert.equal(checkboxes.length, 5);
-    assert.equal(
-      harness.elements
-        .get("#assignments-list")
-        .children[2].children[1].children[1].children[1].textContent,
-      "Submitted",
-    );
+  const rows = elements.assignmentsList.children;
+  assert.equal(rows.length, 5);
+  assert.deepEqual(
+    Array.from(
+      rows,
+      (row) => textContentOf(row).trim().split("Due:")[0].trim(),
+    ),
+    [
+      "Graded discussionDiscussion",
+      "Quiz assignmentQuiz",
+      "EssayAssignmentSubmitted",
+      "Standalone quizQuiz",
+      "Ungraded discussionDiscussion",
+    ],
+  );
+  assert.equal(elements.assignmentsSection.style.display, "block");
 
-    const hideCompleted = harness.elements.get("#hide-completed");
-    hideCompleted.checked = true;
-    hideCompleted.dispatchEvent("change");
-    assert.equal(harness.elements.get("#assignments-list").children.length, 4);
-    assert.equal(
-      Array.from(harness.elements.get("#assignments-list").children).some(
-        (row) => textContentOf(row).includes("Essay"),
-      ),
-      false,
-    );
-  },
-);
+  elements.hideCompletedCheckbox.checked = true;
+  await elements.hideCompletedCheckbox.dispatchEvent("change");
+  assert.equal(elements.assignmentsList.children.length, 4);
+  assert.equal(
+    Array.from(elements.assignmentsList.children).some((row) =>
+      textContentOf(row).includes("Essay"),
+    ),
+    false,
+  );
 
-test(
-  "displayAssignments and selection controls update the import button",
-  () => {
-    const harness = createHarness();
-    const listSelect = harness.elements.get("#list");
-    const importButton = harness.elements.get("#import-selected");
+  elements.hideCompletedCheckbox.checked = false;
+  await elements.hideCompletedCheckbox.dispatchEvent("change");
+  const completedCheckbox = elements.assignmentsList
+    .querySelectorAll(".assignment-checkbox")
+    .find((checkbox) => String(checkbox.dataset.index) === "2");
+  completedCheckbox.checked = true;
+  await completedCheckbox.dispatchEvent("change");
+  elements.hideCompletedCheckbox.checked = true;
+  await elements.hideCompletedCheckbox.dispatchEvent("change");
+  elements.listSelect.value = "list-1";
+  assert.equal(elements.importBtn.textContent, "Import 0 Selected to Trello");
+});
 
-    harness.context.displayAssignments([
-      {
-        name: "First assignment",
-        description: "A description",
-        due_at: null,
-        submitted: false,
-        type: "assignment",
-        url: "https://canvas.example/assignments/1",
+test("switching courses keeps the assignments loading message visible", async () => {
+  let resolveSecondLoad;
+  let requestCount = 0;
+  const secondLoad = new Promise((resolve) => {
+    resolveSecondLoad = resolve;
+  });
+  const { controller, elements } = createControllerHarness({
+    getCourseItems: async () => {
+      requestCount++;
+      return requestCount === 1 ? createCourseItems() : secondLoad;
+    },
+  });
+
+  await controller.initialize();
+  await controller.loadAssignments("first-course");
+  const pendingLoad = controller.loadAssignments("second-course");
+
+  assert.equal(elements.assignmentsSection.style.display, "block");
+  assert.match(elements.assignmentsList.innerHTML, /Loading assignments/);
+
+  resolveSecondLoad(createCourseItems());
+  await pendingLoad;
+});
+
+test("a Trello list failure does not prevent Canvas courses from loading", async () => {
+  const { controller, elements } = createControllerHarness({
+    getLists: async () => {
+      throw new Error("Trello unavailable");
+    },
+  });
+
+  await controller.initialize();
+
+  assert.equal(elements.courseSelect.children.length, 1);
+  assert.equal(
+    textContentOf(elements.statusDiv),
+    "Failed to load Trello lists.",
+  );
+  assert.equal(elements.contentDiv.style.display, "block");
+});
+
+test("a Canvas course failure preserves the original error message", async () => {
+  const { controller, elements } = createControllerHarness({
+    getCourses: async () => {
+      throw new Error("Canvas unavailable");
+    },
+  });
+
+  await controller.initialize();
+
+  assert.equal(elements.listSelect.children.length, 1);
+  assert.equal(
+    textContentOf(elements.statusDiv),
+    "Failed to load courses from Canvas. Please check your API token.",
+  );
+});
+
+test("selection controls update the import button", async () => {
+  const { controller, elements } = createControllerHarness();
+  await controller.initialize();
+  await controller.loadAssignments("123");
+  elements.listSelect.value = "list-1";
+
+  const checkboxes = elements.assignmentsList.querySelectorAll(
+    ".assignment-checkbox",
+  );
+  checkboxes[0].checked = true;
+  await checkboxes[0].dispatchEvent("change");
+  assert.equal(elements.importBtn.disabled, false);
+  assert.equal(elements.importBtn.textContent, "Import 1 Selected to Trello");
+
+  await elements.selectAllBtn.dispatchEvent("click");
+  assert.equal(elements.importBtn.textContent, "Import 5 Selected to Trello");
+
+  await elements.selectNoneBtn.dispatchEvent("click");
+  assert.equal(elements.importBtn.disabled, true);
+  assert.equal(elements.importBtn.textContent, "Import 0 Selected to Trello");
+});
+
+test("createCard authorizes Trello and sends the expected card payload", async () => {
+  const { createTrelloApi } = requireModule("trello");
+  const requests = [];
+  let authorized = false;
+  const trello = {
+    getRestApi: async () => ({
+      isAuthorized: async () => false,
+      authorize: async (options) => {
+        authorized = options.scope === "read,write";
       },
-      {
-        name: "Second assignment",
-        description: "Another description",
-        due_at: "2024-01-01T12:00:00Z",
-        submitted: true,
-        type: "quiz",
-        url: "https://canvas.example/quizzes/2",
-      },
-    ]);
+      getToken: async () => "trello-token",
+    }),
+  };
+  const api = createTrelloApi({
+    trello,
+    appKey: "app-key",
+    fetchImpl: async (url, options) => {
+      requests.push({ url, options });
+      return { ok: true, status: 200 };
+    },
+  });
 
-    assert.equal(importButton.disabled, true);
-    assert.equal(importButton.textContent, "Import 0 Selected to Trello");
-
-    listSelect.value = "trello-list-id";
-    const checkboxes = harness.elements
-      .get("#assignments-list")
-      .querySelectorAll(".assignment-checkbox");
-    checkboxes[0].checked = true;
-    harness.context.updateImportButton();
-
-    assert.equal(importButton.disabled, false);
-    assert.equal(importButton.textContent, "Import 1 Selected to Trello");
-
-    harness.elements.get("#select-all").dispatchEvent("click");
-    assert.equal(importButton.textContent, "Import 2 Selected to Trello");
-
-    harness.elements.get("#select-none").dispatchEvent("click");
-    assert.equal(importButton.disabled, true);
-    assert.equal(importButton.textContent, "Import 0 Selected to Trello");
-  },
-);
-
-test(
-  "createCardFromAssignment authorizes Trello and sends the expected card payload",
-  async () => {
-    const harness = createHarness();
-    harness.elements.get("#list").value = "trello-list-id";
-
-    await harness.context.createCardFromAssignment({
+  await api.createCard(
+    {
       name: "Essay",
       description: "<h2>Instructions</h2><p>Write it.</p>",
       due_at: "2024-01-03T12:00:00Z",
       submitted: true,
       url: "https://canvas.example/assignments/1",
-    });
+    },
+    "trello-list-id",
+  );
 
-    assert.equal(harness.cards.length, 1);
-    const request = harness.cards[0];
-    const params = new URL(request.url).searchParams;
-
-    assert.equal(request.options.method, "POST");
-    assert.equal(params.get("key"), "b5c06882ca740f9920dae402dfbb8341");
-    assert.equal(params.get("token"), "trello-token");
-    assert.equal(params.get("name"), "Essay");
-    assert.equal(params.get("idList"), "trello-list-id");
-    assert.equal(params.get("desc"), "## InstructionsWrite it.");
-    assert.equal(params.get("due"), "2024-01-03T12:00:00.000Z");
-    assert.equal(params.get("dueComplete"), "true");
-    assert.equal(
-      params.get("urlSource"),
-      "https://canvas.example/assignments/1",
-    );
-  },
-);
+  assert.equal(authorized, true);
+  assert.equal(requests.length, 1);
+  const params = new URL(requests[0].url).searchParams;
+  assert.equal(requests[0].options.method, "POST");
+  assert.equal(params.get("key"), "app-key");
+  assert.equal(params.get("token"), "trello-token");
+  assert.equal(params.get("name"), "Essay");
+  assert.equal(params.get("idList"), "trello-list-id");
+  assert.equal(params.get("desc"), "## InstructionsWrite it.");
+  assert.equal(params.get("due"), "2024-01-03T12:00:00.000Z");
+  assert.equal(params.get("dueComplete"), "true");
+  assert.equal(
+    params.get("urlSource"),
+    "https://canvas.example/assignments/1",
+  );
+});
