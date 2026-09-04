@@ -96,12 +96,59 @@ export function mergeCourseItems({ assignments, quizzes, discussions }) {
   }));
 }
 
-export function filterVisibleAssignments(assignments, hideCompleted) {
-  if (!hideCompleted) return assignments;
+export function filterVisibleAssignments(
+  assignments,
+  hideCompleted,
+  type = "all",
+  weekStart = "",
+  hideImported = false,
+  importedUrls = new Set(),
+) {
+  const normalizedWeekStart = weekStart ? parseDateOnly(weekStart) : null;
+  const weekEnd = normalizedWeekStart
+    ? addDays(normalizedWeekStart, 7)
+    : null;
 
-  return assignments.filter(
-    (assignment) => !assignment.assignmentBacked || !assignment.submitted,
-  );
+  return assignments.filter((assignment) => {
+    if (
+      hideCompleted &&
+      assignment.assignmentBacked &&
+      assignment.submitted
+    ) {
+      return false;
+    }
+
+    if (type !== "all" && assignment.type !== type) return false;
+
+    if (hideImported && assignment.url && importedUrls.has(assignment.url)) {
+      return false;
+    }
+
+    if (normalizedWeekStart) {
+      const dueDate = parseCanvasDate(assignment.due_at);
+      if (!dueDate || dueDate < normalizedWeekStart || dueDate >= weekEnd) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+}
+
+export function getMonday(date = new Date()) {
+  const monday = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const day = monday.getDay();
+  const daysSinceMonday = day === 0 ? 6 : day - 1;
+  monday.setDate(monday.getDate() - daysSinceMonday);
+  return monday;
+}
+
+export function formatDateOnly(date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
 }
 
 export function toTrelloDescription(description) {
@@ -117,4 +164,22 @@ function compareDueDates(left, right) {
   if (!left.due_at) return 1;
   if (!right.due_at) return -1;
   return new Date(left.due_at) - new Date(right.due_at);
+}
+
+function parseDateOnly(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+}
+
+function parseCanvasDate(value) {
+  if (!value) return null;
+  const date = parseDateOnly(value) || new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function addDays(date, days) {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
 }

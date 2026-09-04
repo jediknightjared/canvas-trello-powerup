@@ -5,6 +5,14 @@ export function createTrelloApi({ trello, appKey, fetchImpl = fetch }) {
     return trello.lists("id", "name");
   }
 
+  async function getBoardCards() {
+    const cards = await trello.cards("all");
+    if (!Array.isArray(cards)) {
+      throw new Error("Unexpected response from Trello cards API");
+    }
+    return cards;
+  }
+
   async function createCard(assignment, listId) {
     const restApi = await trello.getRestApi();
     if (!(await restApi.isAuthorized())) {
@@ -34,5 +42,5 @@ export function createTrelloApi({ trello, appKey, fetchImpl = fetch }) {
     }
   }
 
-  return { createCard, getLists };
+  return { createCard, getBoardCards, getLists };
 }

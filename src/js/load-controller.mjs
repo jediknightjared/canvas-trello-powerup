@@ -1,5 +1,7 @@
 import {
   filterVisibleAssignments,
+  formatDateOnly,
+  getMonday,
   mergeCourseItems,
 } from "./assignment-mapper.mjs";
 import { createAssignmentView } from "./assignment-view.mjs";
@@ -20,6 +22,19 @@ export function createLoadController({
     assignmentsSection,
     assignmentsList,
     hideCompletedCheckbox,
+    hideImportedCheckbox,
+    duplicateCheckStatus,
+    assignmentTypeSelect,
+    filtersToggle,
+    filtersPanel,
+    filterSummary,
+    dueWeekInput,
+    weekRange,
+    previousWeekBtn,
+    nextWeekBtn,
+    currentWeekBtn,
+    nextWeekFilterBtn,
+    clearDueWeekBtn,
     selectAllBtn,
     selectNoneBtn,
     importTooltipContainer,
@@ -31,14 +46,19 @@ export function createLoadController({
   const state = {
     assignments: [],
     selectedIndexes: new Set(),
+    importedUrls: new Set(),
+    duplicateCheckAvailable: false,
+    weekStart: "",
     importing: false,
   };
 
   async function initialize() {
     bindEvents();
+    setFiltersExpanded(false);
+    updateFilterSummary();
     showCoursePrompt();
 
-    await Promise.all([loadLists(), initializeCanvas()]);
+    await Promise.all([loadLists(), loadBoardCards(), initializeCanvas()]);
   }
 
   async function loadLists() {
@@ -55,6 +75,44 @@ export function createLoadController({
       logger.error("Error loading Trello lists:", error);
       ui.showError("Failed to load Trello lists.");
     }
+  }
+
+  async function loadBoardCards() {
+    setDuplicateCheckLoading();
+
+    try {
+      const cards = await trelloApi.getBoardCards();
+      state.importedUrls = new Set([
+        ...state.importedUrls,
+        ...extractImportedUrls(cards),
+      ]);
+      state.duplicateCheckAvailable = true;
+      hideImportedCheckbox.disabled = false;
+      duplicateCheckStatus.hidden = true;
+      duplicateCheckStatus.textContent = "";
+      duplicateCheckStatus.className = "filter-status";
+      updateFilterSummary();
+      if (state.assignments.length > 0) displayCurrentAssignments();
+    } catch (error) {
+      state.importedUrls = new Set();
+      state.duplicateCheckAvailable = false;
+      hideImportedCheckbox.checked = false;
+      hideImportedCheckbox.disabled = true;
+      duplicateCheckStatus.hidden = false;
+      duplicateCheckStatus.className = "filter-status warning";
+      duplicateCheckStatus.textContent =
+        "Could not check Trello cards; showing all assignments.";
+      logger.error("Error loading Trello cards:", error);
+      updateFilterSummary();
+      if (state.assignments.length > 0) displayCurrentAssignments();
+    }
+  }
+
+  function setDuplicateCheckLoading() {
+    hideImportedCheckbox.disabled = true;
+    duplicateCheckStatus.hidden = false;
+    duplicateCheckStatus.className = "filter-status";
+    duplicateCheckStatus.textContent = "Checking Trello cards...";
   }
 
   async function initializeCanvas() {
@@ -111,10 +169,12 @@ export function createLoadController({
     const assignments = filterVisibleAssignments(
       state.assignments,
       hideCompletedCheckbox.checked,
+      assignmentTypeSelect.value || "all",
+      state.weekStart,
+      hideImportedCheckbox.checked && state.duplicateCheckAvailable,
+      state.importedUrls,
     );
-    const emptyMessage = hideCompletedCheckbox.checked
-      ? "No incomplete assignments found for this course."
-      : "No assignments found for this course.";
+    const emptyMessage = getEmptyMessage();
 
     assignmentView.render(
       assignments,
@@ -124,6 +184,115 @@ export function createLoadController({
     );
     setSelectionControlsEnabled(assignments.length > 0);
     updateImportButton();
+  }
+
+  function getEmptyMessage() {
+    const type = assignmentTypeSelect.value || "all";
+    const typeLabel =
+      type === "all"
+        ? "assignments"
+        : `${type === "quiz" ? "quiz" : type} items`;
+    const weekLabel = state.weekStart
+      ? ` during ${formatWeekRange(state.weekStart)}`
+      : "";
+    const completionLabel = hideCompletedCheckbox.checked
+      ? " incomplete"
+      : "";
+    const importedLabel =
+      hideImportedCheckbox.checked && state.duplicateCheckAvailable
+        ? " not already in Trello"
+        : "";
+    return `No${completionLabel} ${typeLabel}${weekLabel}${importedLabel} found for this course.`;
+  }
+
+  function toggleFilters() {
+    const expanded = filtersToggle.getAttribute("aria-expanded") === "true";
+    setFiltersExpanded(!expanded);
+  }
+
+  function setFiltersExpanded(expanded) {
+    filtersToggle.setAttribute("aria-expanded", String(expanded));
+    filtersPanel.hidden = !expanded;
+  }
+
+  function updateFilterSummary() {
+    const type = assignmentTypeSelect.value || "all";
+    const typeLabel =
+      {
+        all: "All types",
+        assignment: "Assignments",
+        quiz: "Quizzes",
+        discussion: "Discussions",
+      }[type] || "All types";
+    const completionLabel = hideCompletedCheckbox.checked
+      ? "Incomplete"
+      : "";
+    const dueLabel = state.weekStart
+      ? formatWeekRange(state.weekStart)
+      : "All due dates";
+    const importedLabel =
+      hideImportedCheckbox.checked && state.duplicateCheckAvailable
+        ? "Not imported"
+        : "";
+    filterSummary.textContent = [
+      typeLabel,
+      dueLabel,
+      completionLabel,
+      importedLabel,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  }
+
+  function handleFilterChange() {
+    updateFilterSummary();
+    displayCurrentAssignments();
+  }
+
+  function handleDueWeekChange() {
+    if (!dueWeekInput.value) {
+      clearDueWeek();
+      return;
+    }
+
+    const [year, month, day] = dueWeekInput.value.split("-").map(Number);
+    setDueWeek(new Date(year, month - 1, day));
+  }
+
+  function setDueWeek(date) {
+    const monday = getMonday(date);
+    state.weekStart = formatDateOnly(monday);
+    dueWeekInput.value = state.weekStart;
+    updateWeekRange();
+    displayCurrentAssignments();
+  }
+
+  function shiftDueWeek(offset) {
+    const currentMonday = state.weekStart
+      ? parseDateOnly(state.weekStart)
+      : getMonday();
+    currentMonday.setDate(currentMonday.getDate() + offset * 7);
+    setDueWeek(currentMonday);
+  }
+
+  function selectNextWeek() {
+    const nextMonday = getMonday();
+    nextMonday.setDate(nextMonday.getDate() + 7);
+    setDueWeek(nextMonday);
+  }
+
+  function clearDueWeek() {
+    state.weekStart = "";
+    dueWeekInput.value = "";
+    updateWeekRange();
+    displayCurrentAssignments();
+  }
+
+  function updateWeekRange() {
+    weekRange.textContent = state.weekStart
+      ? formatWeekRange(state.weekStart)
+      : "All due dates";
+    updateFilterSummary();
   }
 
   function showCoursePrompt() {
@@ -237,6 +406,7 @@ export function createLoadController({
         try {
           await trelloApi.createCard(assignment, listSelect.value);
           succeeded++;
+          cacheImportedAssignment(assignment);
         } catch (error) {
           logger.error("Failed to create card for:", assignment.name, error);
           failed.push(assignment.name);
@@ -270,6 +440,14 @@ export function createLoadController({
       .filter((index) => state.selectedIndexes.has(index));
   }
 
+  function cacheImportedAssignment(assignment) {
+    if (!assignment.url) return;
+    state.importedUrls.add(assignment.url);
+    if (state.duplicateCheckAvailable && hideImportedCheckbox.checked) {
+      displayCurrentAssignments();
+    }
+  }
+
   function bindEvents() {
     listSelect.addEventListener("change", updateImportButton);
     courseSelect.addEventListener("change", (event) => {
@@ -279,7 +457,16 @@ export function createLoadController({
         showCoursePrompt();
       }
     });
-    hideCompletedCheckbox.addEventListener("change", displayCurrentAssignments);
+    filtersToggle.addEventListener("click", toggleFilters);
+    hideCompletedCheckbox.addEventListener("change", handleFilterChange);
+    hideImportedCheckbox.addEventListener("change", handleFilterChange);
+    assignmentTypeSelect.addEventListener("change", handleFilterChange);
+    dueWeekInput.addEventListener("change", handleDueWeekChange);
+    previousWeekBtn.addEventListener("click", () => shiftDueWeek(-1));
+    nextWeekBtn.addEventListener("click", () => shiftDueWeek(1));
+    currentWeekBtn.addEventListener("click", () => setDueWeek(getMonday()));
+    nextWeekFilterBtn.addEventListener("click", selectNextWeek);
+    clearDueWeekBtn.addEventListener("click", clearDueWeek);
     selectAllBtn.addEventListener("click", selectAll);
     selectNoneBtn.addEventListener("click", selectNone);
     importBtn.addEventListener("click", importSelected);
@@ -298,6 +485,17 @@ export function createLoadController({
     loadAssignments,
     updateImportButton,
   };
+}
+
+function extractImportedUrls(cards) {
+  const urls = new Set();
+  for (const card of cards) {
+    if (!Array.isArray(card.attachments)) continue;
+    for (const attachment of card.attachments) {
+      if (attachment?.url) urls.add(attachment.url);
+    }
+  }
+  return urls;
 }
 
 function renderOptions(document, select, options, placeholder, toOption) {
@@ -326,6 +524,28 @@ function validateCredentials({ domain, token }) {
       "Invalid Canvas domain format. Please use your institution's Canvas URL (e.g., university.instructure.com).",
     );
   }
+}
+
+function parseDateOnly(value) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function formatWeekRange(weekStart) {
+  const start = parseDateOnly(weekStart);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+
+  const monthDay = (date) =>
+    date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  if (
+    start.getFullYear() === end.getFullYear() &&
+    start.getMonth() === end.getMonth()
+  ) {
+    return `${start.toLocaleDateString(undefined, { month: "short" })} ${start.getDate()}–${end.getDate()}, ${end.getFullYear()}`;
+  }
+
+  return `${monthDay(start)} – ${monthDay(end)}, ${end.getFullYear()}`;
 }
 
 function getInitializationError(error) {

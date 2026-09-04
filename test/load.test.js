@@ -103,6 +103,19 @@ function createElements() {
     assignmentsSection: new FakeElement("section"),
     assignmentsList: new FakeElement("div"),
     hideCompletedCheckbox: new FakeElement("input"),
+    hideImportedCheckbox: new FakeElement("input"),
+    duplicateCheckStatus: new FakeElement("span"),
+    assignmentTypeSelect: new FakeElement("select"),
+    filtersToggle: new FakeElement("button"),
+    filtersPanel: new FakeElement("div"),
+    filterSummary: new FakeElement("span"),
+    dueWeekInput: new FakeElement("input"),
+    weekRange: new FakeElement("span"),
+    previousWeekBtn: new FakeElement("button"),
+    nextWeekBtn: new FakeElement("button"),
+    currentWeekBtn: new FakeElement("button"),
+    nextWeekFilterBtn: new FakeElement("button"),
+    clearDueWeekBtn: new FakeElement("button"),
     selectAllBtn: new FakeElement("button"),
     selectNoneBtn: new FakeElement("button"),
     importTooltipContainer: new FakeElement("span"),
@@ -125,6 +138,19 @@ function createDocument(elements) {
         "#assignments-section": "assignmentsSection",
         "#assignments-list": "assignmentsList",
         "#hide-completed": "hideCompletedCheckbox",
+        "#hide-imported": "hideImportedCheckbox",
+        "#duplicate-check-status": "duplicateCheckStatus",
+        "#assignment-type": "assignmentTypeSelect",
+        "#filters-toggle": "filtersToggle",
+        "#filters-panel": "filtersPanel",
+        "#filter-summary": "filterSummary",
+        "#due-week": "dueWeekInput",
+        "#week-range": "weekRange",
+        "#previous-week": "previousWeekBtn",
+        "#next-week": "nextWeekBtn",
+        "#current-week": "currentWeekBtn",
+        "#next-week-filter": "nextWeekFilterBtn",
+        "#clear-due-week": "clearDueWeekBtn",
         "#select-all": "selectAllBtn",
         "#select-none": "selectNoneBtn",
         "#import-tooltip-container": "importTooltipContainer",
@@ -189,6 +215,7 @@ function createControllerHarness({
   getCourseItems,
   getCourses,
   getLists,
+  getBoardCards,
   loadCredentials,
 } = {}) {
   const elements = createElements();
@@ -205,6 +232,7 @@ function createControllerHarness({
   const trelloApi = {
     getLists:
       getLists || (async () => [{ id: "list-1", name: "Inbox" }]),
+    getBoardCards: getBoardCards || (async () => []),
     createCard: async (assignment, listId) => {
       cards.push({ assignment, listId });
       if (createCard) return createCard(assignment, listId);
@@ -369,6 +397,207 @@ test("mergeCourseItems deduplicates and sorts Canvas item types", () => {
     ],
   );
   assert.equal(filterVisibleAssignments(items, true).length, 4);
+});
+
+test("filterVisibleAssignments filters by type and Monday through Sunday weeks", () => {
+  const { filterVisibleAssignments } = requireModule("mapper");
+  const assignments = [
+    { name: "Monday", type: "assignment", due_at: "2024-01-01T09:00:00Z" },
+    { name: "Sunday", type: "quiz", due_at: "2024-01-07T23:59:00Z" },
+    { name: "Next Monday", type: "discussion", due_at: "2024-01-08T07:00:00Z" },
+    { name: "No due date", type: "assignment", due_at: null },
+  ];
+
+  assert.deepEqual(
+    filterVisibleAssignments(assignments, false, "all", "2024-01-01").map(
+      ({ name }) => name,
+    ),
+    ["Monday", "Sunday"],
+  );
+  assert.deepEqual(
+    filterVisibleAssignments(assignments, false, "quiz").map(
+      ({ name }) => name,
+    ),
+    ["Sunday"],
+  );
+});
+
+test("filterVisibleAssignments hides only assignments with exact imported URLs", () => {
+  const { filterVisibleAssignments } = requireModule("mapper");
+  const assignments = [
+    {
+      name: "Imported assignment",
+      type: "assignment",
+      url: "https://canvas.example/assignments/1",
+    },
+    {
+      name: "Same title, different URL",
+      type: "assignment",
+      url: "https://canvas.example/assignments/2",
+    },
+    { name: "No Canvas URL", type: "assignment", url: "" },
+  ];
+  const importedUrls = new Set(["https://canvas.example/assignments/1"]);
+
+  assert.deepEqual(
+    filterVisibleAssignments(
+      assignments,
+      false,
+      "all",
+      "",
+      true,
+      importedUrls,
+    ).map(({ name }) => name),
+    ["Same title, different URL", "No Canvas URL"],
+  );
+  assert.equal(
+    filterVisibleAssignments(assignments, false, "all", "", false, importedUrls)
+      .length,
+    3,
+  );
+});
+
+test("Trello API returns all visible board cards for duplicate detection", async () => {
+  const { createTrelloApi } = requireModule("trello");
+  const cards = [{ id: "card-1", attachments: [{ url: "https://canvas.example/assignments/1" }] }];
+  let requestedFields;
+  const api = createTrelloApi({
+    trello: {
+      cards: async (fields) => {
+        requestedFields = fields;
+        return cards;
+      },
+    },
+  });
+
+  assert.deepEqual(await api.getBoardCards(), cards);
+  assert.equal(requestedFields, "all");
+});
+
+test("controller applies assignment type and due-week filters", async () => {
+  const { controller, elements } = createControllerHarness();
+  const { formatDateOnly, getMonday } = requireModule("mapper");
+  await controller.initialize();
+  assert.equal(elements.filtersToggle.getAttribute("aria-expanded"), "false");
+  assert.equal(elements.filtersPanel.hidden, true);
+
+  await elements.filtersToggle.dispatchEvent("click");
+  assert.equal(elements.filtersToggle.getAttribute("aria-expanded"), "true");
+  assert.equal(elements.filtersPanel.hidden, false);
+
+  await controller.loadAssignments("123");
+
+  elements.assignmentTypeSelect.value = "quiz";
+  await elements.assignmentTypeSelect.dispatchEvent("change");
+  assert.equal(elements.assignmentsList.children.length, 2);
+  assert.match(elements.filterSummary.textContent, /^Quizzes · All due dates/);
+
+  elements.dueWeekInput.value = "2024-01-01";
+  await elements.dueWeekInput.dispatchEvent("change");
+  assert.equal(elements.assignmentsList.children.length, 2);
+  assert.equal(elements.weekRange.textContent, "Jan 1–7, 2024");
+  assert.equal(elements.filterSummary.textContent, "Quizzes · Jan 1–7, 2024");
+
+  await elements.clearDueWeekBtn.dispatchEvent("click");
+  assert.equal(elements.weekRange.textContent, "All due dates");
+  assert.equal(elements.assignmentsList.children.length, 2);
+
+  const expectedNextMonday = getMonday();
+  expectedNextMonday.setDate(expectedNextMonday.getDate() + 7);
+  await elements.nextWeekFilterBtn.dispatchEvent("click");
+  assert.equal(elements.dueWeekInput.value, formatDateOnly(expectedNextMonday));
+
+  await elements.filtersToggle.dispatchEvent("click");
+  assert.equal(elements.filtersPanel.hidden, true);
+});
+
+test("controller hides assignments already present on the board", async () => {
+  const { controller, elements } = createControllerHarness({
+    getBoardCards: async () => [
+      {
+        id: "card-1",
+        attachments: [{ url: "https://canvas.example/assignments/1" }],
+      },
+    ],
+  });
+  await controller.initialize();
+  await controller.loadAssignments("123");
+
+  assert.equal(elements.hideImportedCheckbox.disabled, false);
+  assert.equal(elements.assignmentsList.children.length, 5);
+
+  elements.hideImportedCheckbox.checked = true;
+  await elements.hideImportedCheckbox.dispatchEvent("change");
+  assert.equal(elements.assignmentsList.children.length, 4);
+  assert.equal(
+    Array.from(elements.assignmentsList.children).some((row) =>
+      textContentOf(row).includes("Essay"),
+    ),
+    false,
+  );
+  assert.match(elements.filterSummary.textContent, /Not imported/);
+});
+
+test("duplicate detection fails open when Trello cards cannot be loaded", async () => {
+  const { controller, elements } = createControllerHarness({
+    getBoardCards: async () => {
+      throw new Error("Trello cards unavailable");
+    },
+  });
+  await controller.initialize();
+  await controller.loadAssignments("123");
+
+  assert.equal(elements.hideImportedCheckbox.disabled, true);
+  assert.match(
+    elements.duplicateCheckStatus.textContent,
+    /Could not check Trello cards/,
+  );
+  assert.equal(elements.assignmentsList.children.length, 5);
+});
+
+test("duplicate filter stays disabled while Trello cards are loading", async () => {
+  let resolveCards;
+  const cardsPending = new Promise((resolve) => {
+    resolveCards = resolve;
+  });
+  const { controller, elements } = createControllerHarness({
+    getBoardCards: async () => cardsPending,
+  });
+
+  const initialization = controller.initialize();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(elements.hideImportedCheckbox.disabled, true);
+  assert.match(elements.duplicateCheckStatus.textContent, /Checking Trello cards/);
+
+  resolveCards([]);
+  await initialization;
+  assert.equal(elements.hideImportedCheckbox.disabled, false);
+  assert.equal(elements.duplicateCheckStatus.hidden, true);
+});
+
+test("successful imports update the duplicate URL cache immediately", async () => {
+  const { controller, elements } = createControllerHarness();
+  await controller.initialize();
+  await controller.loadAssignments("123");
+
+  elements.listSelect.value = "list-1";
+  await elements.listSelect.dispatchEvent("change");
+  elements.hideImportedCheckbox.checked = true;
+  await elements.hideImportedCheckbox.dispatchEvent("change");
+
+  const importedCheckbox = elements.assignmentsList
+    .querySelectorAll(".assignment-checkbox")
+    .find((checkbox) => String(checkbox.dataset.index) === "0");
+  importedCheckbox.checked = true;
+  await importedCheckbox.dispatchEvent("change");
+  await elements.importBtn.dispatchEvent("click");
+
+  assert.equal(
+    Array.from(elements.assignmentsList.children).some((row) =>
+      textContentOf(row).includes("Graded discussion"),
+    ),
+    false,
+  );
 });
 
 test("controller renders course items and preserves the hide-completed behavior", async () => {

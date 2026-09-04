@@ -6,6 +6,19 @@ const elements = {
   assignmentsSection: document.querySelector("#assignments-section"),
   assignmentsList: document.querySelector("#assignments-list"),
   hideCompletedCheckbox: document.querySelector("#hide-completed"),
+  hideImportedCheckbox: document.querySelector("#hide-imported"),
+  duplicateCheckStatus: document.querySelector("#duplicate-check-status"),
+  assignmentTypeSelect: document.querySelector("#assignment-type"),
+  filtersToggle: document.querySelector("#filters-toggle"),
+  filtersPanel: document.querySelector("#filters-panel"),
+  filterSummary: document.querySelector("#filter-summary"),
+  dueWeekInput: document.querySelector("#due-week"),
+  weekRange: document.querySelector("#week-range"),
+  previousWeekBtn: document.querySelector("#previous-week"),
+  nextWeekBtn: document.querySelector("#next-week"),
+  currentWeekBtn: document.querySelector("#current-week"),
+  nextWeekFilterBtn: document.querySelector("#next-week-filter"),
+  clearDueWeekBtn: document.querySelector("#clear-due-week"),
   selectAllBtn: document.querySelector("#select-all"),
   selectNoneBtn: document.querySelector("#select-none"),
   importTooltipContainer: document.querySelector("#import-tooltip-container"),
@@ -75,6 +88,14 @@ const canvasApi = {
   },
 };
 
+const previewCards = [
+  {
+    id: "preview-card-1",
+    attachments: [{ url: "https://canvas.example/assignments/1" }],
+  },
+];
+let previewCardSequence = 2;
+
 const trelloApi = {
   async getLists() {
     return [
@@ -82,7 +103,15 @@ const trelloApi = {
       { id: "preview-list-2", name: "This Week" },
     ];
   },
-  async createCard() {},
+  async getBoardCards() {
+    return previewCards;
+  },
+  async createCard(assignment) {
+    previewCards.push({
+      id: `preview-card-${previewCardSequence++}`,
+      attachments: assignment.url ? [{ url: assignment.url }] : [],
+    });
+  },
 };
 
 async function initializePreview() {

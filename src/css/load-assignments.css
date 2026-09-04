@@ -120,22 +120,201 @@ body {
   line-height: 1.3;
 }
 
-.filters-list {
+.filters-heading {
+  margin-bottom: 0 !important;
+}
+
+.filters-toggle {
   display: flex;
-  flex-wrap: wrap;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--load-text);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.filters-toggle:hover,
+.filters-toggle[aria-expanded="true"] {
+  border-color: var(--load-border);
+  background: var(--load-surface-neutral);
+}
+
+.filters-toggle:focus-visible {
+  outline: 2px solid var(--load-blue-text);
+  outline-offset: 4px;
+}
+
+.filters-toggle-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--load-text-subtle);
+  font-size: 0.75em;
+  font-weight: 400;
+}
+
+.filters-toggle-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  color: var(--load-text);
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+  transition: transform 120ms ease;
+}
+
+.filters-toggle[aria-expanded="true"] .filters-toggle-icon {
+  transform: rotate(180deg);
+}
+
+.filters-panel {
+  margin-top: 20px;
+}
+
+.filters-list {
+  display: grid;
+  grid-template-columns: minmax(240px, auto) minmax(260px, 1fr);
+  align-items: end;
   gap: 12px 20px;
 }
 
 .filter-option {
   display: inline-flex;
+  align-self: end;
   align-items: center;
   gap: 8px;
+  min-height: 34px;
   color: var(--load-text);
   font-weight: 600;
 }
 
 .filter-option input {
   margin: 0;
+}
+
+.filter-status {
+  color: var(--load-text-subtle);
+  font-size: 0.8em;
+  font-weight: 400;
+}
+
+.filter-status.warning {
+  color: var(--load-orange-text);
+}
+
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 180px;
+  color: var(--load-text);
+  font-weight: 600;
+}
+
+.filter-field select {
+  height: 38px;
+  min-height: 38px;
+  margin: 0;
+  padding: 8px 10px;
+  width: min(100%, 280px);
+  min-width: 180px;
+}
+
+.week-filter {
+  grid-column: 1 / -1;
+}
+
+.week-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.week-picker {
+  display: grid;
+  grid-template-columns: 36px 154px 36px;
+  align-items: stretch;
+}
+
+.week-nav-button {
+  display: inline-flex;
+  height: 38px;
+  min-height: 38px;
+  margin: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border: 1px solid var(--load-border);
+  color: var(--load-text);
+  background: var(--load-surface);
+  cursor: pointer;
+}
+
+.week-nav-icon {
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.week-nav-button:first-child {
+  border-right: 0;
+  border-radius: 4px 0 0 4px;
+}
+
+.week-nav-button:last-child {
+  border-left: 0;
+  border-radius: 0 4px 4px 0;
+}
+
+.week-nav-button:hover {
+  background: var(--load-surface-neutral);
+}
+
+.week-nav-button:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid var(--load-blue-text);
+  outline-offset: -2px;
+}
+
+.week-controls > button {
+  display: inline-flex;
+  height: 38px;
+  min-height: 38px;
+  margin: 0;
+  align-items: center;
+  justify-content: center;
+}
+
+#due-week {
+  height: 38px;
+  min-height: 38px;
+  width: 154px;
+  min-width: 0;
+  margin: 0;
+  border-radius: 0;
+}
+
+.filter-help {
+  display: block;
+  margin-top: 6px;
+  color: var(--load-text-subtle);
+  font-size: 0.85em;
+  font-weight: 400;
 }
 
 .assignments-list {
@@ -294,6 +473,14 @@ body {
 
   .filters-section {
     padding: 16px;
+  }
+
+  .filters-list {
+    grid-template-columns: 1fr;
+  }
+
+  .week-filter {
+    grid-column: auto;
   }
 
   .assignment-item {

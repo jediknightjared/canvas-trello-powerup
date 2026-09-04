@@ -46,12 +46,127 @@
       </div>
 
       <div class="filters-section">
-        <h3>Filters</h3>
-        <div class="filters-list">
-          <label class="filter-option" for="hide-completed">
-            <input type="checkbox" id="hide-completed" />
-            Hide completed assignments
-          </label>
+        <h3 class="filters-heading">
+          <button
+            id="filters-toggle"
+            class="filters-toggle"
+            type="button"
+            aria-expanded="false"
+            aria-controls="filters-panel"
+          >
+            <span>Filters</span>
+            <span class="filters-toggle-meta">
+              <span id="filter-summary">All types · All due dates</span>
+              <svg
+                class="filters-toggle-icon"
+                viewBox="0 0 16 16"
+                width="16"
+                height="16"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="m3.25 6.25 4.75 4.5 4.75-4.5" />
+              </svg>
+            </span>
+          </button>
+        </h3>
+
+        <div id="filters-panel" class="filters-panel" hidden>
+          <div class="filters-list">
+            <label class="filter-option" for="hide-completed">
+              <input type="checkbox" id="hide-completed" />
+              Hide completed assignments
+            </label>
+
+            <label class="filter-option" for="hide-imported">
+              <input
+                type="checkbox"
+                id="hide-imported"
+                aria-describedby="duplicate-check-status"
+                disabled
+              />
+              Hide assignments already imported to Trello
+              <span
+                id="duplicate-check-status"
+                class="filter-status"
+                role="status"
+                aria-live="polite"
+              >
+                Checking Trello cards...
+              </span>
+            </label>
+
+            <label class="filter-field" for="assignment-type">
+              <span>Assignment type</span>
+              <select id="assignment-type" class="mod-input">
+                <option value="all">All types</option>
+                <option value="assignment">Assignments</option>
+                <option value="quiz">Quizzes</option>
+                <option value="discussion">Discussions</option>
+              </select>
+            </label>
+
+            <div class="filter-field week-filter">
+              <span id="due-week-label">Week due</span>
+              <div class="week-controls">
+                <div class="week-picker" aria-labelledby="due-week-label">
+                  <button
+                    id="previous-week"
+                    class="week-nav-button"
+                    type="button"
+                    aria-label="Previous week"
+                  >
+                    <svg
+                      class="week-nav-icon"
+                      viewBox="0 0 16 16"
+                      width="16"
+                      height="16"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path d="m9.75 3.25-4.5 4.75 4.5 4.75" />
+                    </svg>
+                  </button>
+                  <input
+                    id="due-week"
+                    class="mod-input"
+                    type="date"
+                    aria-labelledby="due-week-label"
+                    aria-describedby="week-range"
+                  />
+                  <button
+                    id="next-week"
+                    class="week-nav-button"
+                    type="button"
+                    aria-label="Next week"
+                  >
+                    <svg
+                      class="week-nav-icon"
+                      viewBox="0 0 16 16"
+                      width="16"
+                      height="16"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path d="m6.25 3.25 4.5 4.75-4.5 4.75" />
+                    </svg>
+                  </button>
+                </div>
+                <button id="current-week" class="mod-secondary" type="button">
+                  Current week
+                </button>
+                <button id="next-week-filter" class="mod-secondary" type="button">
+                  Next week
+                </button>
+                <button id="clear-due-week" class="mod-secondary" type="button">
+                  All weeks
+                </button>
+              </div>
+              <span id="week-range" class="filter-help" aria-live="polite">
+                All due dates
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
