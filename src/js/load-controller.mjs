@@ -117,7 +117,7 @@ export function createLoadController({
 
   function setDuplicateCheckLoading() {
     hideImportedCheckbox.disabled = true;
-    duplicateCheckStatus.hidden = false;"
+    duplicateCheckStatus.hidden = false;
     duplicateCheckStatus.className = "filter-status";
     duplicateCheckStatus.textContent = "Checking Trello cards...";
   }
