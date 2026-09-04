@@ -38,7 +38,7 @@ export function createLoadController({
     weekRange,
     previousWeekBtn,
     nextWeekBtn,
-    currentWeekBtn,
+    thisWeekFilterBtn,
     nextWeekFilterBtn,
     clearDueWeekBtn,
     selectAllBtn,
@@ -63,6 +63,7 @@ export function createLoadController({
     bindEvents();
     setFiltersExpanded(false);
     updateFilterSummary();
+    updateWeekFilterButtons();
     showCoursePrompt();
 
     await Promise.all([loadLists(), loadBoardCards(), initializeCanvas()]);
@@ -157,10 +158,10 @@ export function createLoadController({
   async function loadAssignments(courseId) {
     state.selectedCourseId = courseId;
     state.assignments = [];
-    state.selectedIndexes.clear();
-    setSelectionControlsEnabled(false);
-    updateImportButton();
+    clearSelection();
     assignmentView.renderMessage(STATUS_MESSAGES.loadingAssignments, "loading");
+    updateSelectionControls();
+    updateImportButton();
 
     try {
       const sources = await canvasApi.getCourseItems(courseId);
@@ -187,6 +188,7 @@ export function createLoadController({
       hideImportedCheckbox.checked && state.duplicateCheckAvailable,
       state.importedUrls,
     );
+    pruneSelectionToVisibleAssignments(assignments);
     const emptyMessage = getEmptyMessage();
 
     assignmentView.render(
@@ -195,7 +197,7 @@ export function createLoadController({
       emptyMessage,
       handleAssignmentSelectionChange,
     );
-    setSelectionControlsEnabled(assignments.length > 0);
+    updateSelectionControls();
     updateImportButton();
   }
 
@@ -277,7 +279,18 @@ export function createLoadController({
     state.weekStart = formatDateOnly(monday);
     dueWeekInput.value = state.weekStart;
     updateWeekRange();
+    updateWeekFilterButtons();
     displayCurrentAssignments();
+  }
+
+  function toggleThisWeek() {
+    const currentMonday = getMonday();
+    const currentWeekStart = formatDateOnly(currentMonday);
+    if (state.weekStart === currentWeekStart) {
+      clearDueWeek();
+      return;
+    }
+    setDueWeek(currentMonday);
   }
 
   function shiftDueWeek(offset) {
@@ -288,9 +301,14 @@ export function createLoadController({
     setDueWeek(currentMonday);
   }
 
-  function selectNextWeek() {
+  function toggleNextWeek() {
     const nextMonday = getMonday();
     nextMonday.setDate(nextMonday.getDate() + 7);
+    const nextWeekStart = formatDateOnly(nextMonday);
+    if (state.weekStart === nextWeekStart) {
+      clearDueWeek();
+      return;
+    }
     setDueWeek(nextMonday);
   }
 
@@ -298,7 +316,35 @@ export function createLoadController({
     state.weekStart = "";
     dueWeekInput.value = "";
     updateWeekRange();
+    updateWeekFilterButtons();
     displayCurrentAssignments();
+  }
+
+  function updateWeekFilterButtons() {
+    const currentMonday = getMonday();
+    const currentWeekStart = formatDateOnly(currentMonday);
+    const nextMonday = new Date(currentMonday);
+    nextMonday.setDate(nextMonday.getDate() + 7);
+    const nextWeekStart = formatDateOnly(nextMonday);
+
+    thisWeekFilterBtn.setAttribute(
+      "aria-pressed",
+      String(state.weekStart === currentWeekStart),
+    );
+    nextWeekFilterBtn.setAttribute(
+      "aria-pressed",
+      String(state.weekStart === nextWeekStart),
+    );
+    clearDueWeekBtn.setAttribute("aria-pressed", String(!state.weekStart));
+  }
+
+  function pruneSelectionToVisibleAssignments(assignments) {
+    const visibleIndexes = new Set(
+      assignments.map((assignment) => assignment.sourceIndex),
+    );
+    for (const index of state.selectedIndexes) {
+      if (!visibleIndexes.has(index)) state.selectedIndexes.delete(index);
+    }
   }
 
   function updateWeekRange() {
@@ -311,19 +357,23 @@ export function createLoadController({
   function showCoursePrompt() {
     state.selectedCourseId = "";
     state.assignments = [];
-    state.selectedIndexes.clear();
+    clearSelection();
     renderCoursePrompt();
   }
 
   function renderCoursePrompt() {
     assignmentView.renderMessage(STATUS_MESSAGES.selectCourse);
-    setSelectionControlsEnabled(false);
+    updateSelectionControls();
     updateImportButton();
   }
 
-  function setSelectionControlsEnabled(enabled) {
-    selectAllBtn.disabled = !enabled;
-    selectNoneBtn.disabled = !enabled;
+  function updateSelectionControls() {
+    const visibleCount = assignmentView.getRenderedIndexes().length;
+    const selectedCount = state.selectedIndexes.size;
+    selectAllBtn.textContent = `Select All (${visibleCount})`;
+    selectAllBtn.disabled =
+      visibleCount === 0 || selectedCount === visibleCount;
+    selectNoneBtn.disabled = selectedCount === 0;
   }
 
   function handleAssignmentSelectionChange(index, checked) {
@@ -332,6 +382,7 @@ export function createLoadController({
     } else {
       state.selectedIndexes.delete(index);
     }
+    updateSelectionControls();
     updateImportButton();
   }
 
@@ -340,13 +391,19 @@ export function createLoadController({
       state.selectedIndexes.add(index);
     }
     assignmentView.setAllChecked(true);
+    updateSelectionControls();
     updateImportButton();
   }
 
   function selectNone() {
-    state.selectedIndexes.clear();
+    clearSelection();
     assignmentView.setAllChecked(false);
+    updateSelectionControls();
     updateImportButton();
+  }
+
+  function clearSelection() {
+    state.selectedIndexes.clear();
   }
 
   function updateImportButton() {
@@ -357,7 +414,7 @@ export function createLoadController({
       return;
     }
 
-    const count = getVisibleSelectedIndexes().length;
+    const count = state.selectedIndexes.size;
     const needsAssignments = count === 0;
     const needsList = !listSelect.value;
     const guidance = getImportGuidance(needsAssignments, needsList);
@@ -467,7 +524,7 @@ export function createLoadController({
   }
 
   function bindEvents() {
-    listSelect.addEventListener("change", updateImportButton);
+    listSelect.addEventListener("change", () => updateImportButton());
     courseSelect.addEventListener("change", (event) => {
       if (event.target.value) {
         loadAssignments(event.target.value);
@@ -482,8 +539,8 @@ export function createLoadController({
     dueWeekInput.addEventListener("change", handleDueWeekChange);
     previousWeekBtn.addEventListener("click", () => shiftDueWeek(-1));
     nextWeekBtn.addEventListener("click", () => shiftDueWeek(1));
-    currentWeekBtn.addEventListener("click", () => setDueWeek(getMonday()));
-    nextWeekFilterBtn.addEventListener("click", selectNextWeek);
+    thisWeekFilterBtn.addEventListener("click", toggleThisWeek);
+    nextWeekFilterBtn.addEventListener("click", toggleNextWeek);
     clearDueWeekBtn.addEventListener("click", clearDueWeek);
     selectAllBtn.addEventListener("click", selectAll);
     selectNoneBtn.addEventListener("click", selectNone);

@@ -28,16 +28,28 @@ export function createAssignmentView({ document, assignmentsList }) {
     onSelectionChange,
   ) {
     const assignmentDiv = document.createElement("div");
-    assignmentDiv.className = "assignment-item";
+    assignmentDiv.className = getAssignmentClassName(
+      selectedIndexes.has(assignment.sourceIndex),
+    );
+    assignmentDiv.addEventListener("click", (event) => {
+      if (event.target === checkbox) return;
+      checkbox.checked = !checkbox.checked;
+      updateAssignmentSelection();
+    });
 
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.className = "assignment-checkbox";
     checkbox.dataset.index = assignment.sourceIndex;
     checkbox.checked = selectedIndexes.has(assignment.sourceIndex);
-    checkbox.addEventListener("change", (event) => {
-      onSelectionChange(assignment.sourceIndex, event.currentTarget.checked);
+    checkbox.addEventListener("change", () => {
+      updateAssignmentSelection();
     });
+
+    function updateAssignmentSelection() {
+      assignmentDiv.className = getAssignmentClassName(checkbox.checked);
+      onSelectionChange(assignment.sourceIndex, checkbox.checked);
+    }
 
     const infoDiv = document.createElement("div");
     infoDiv.className = "assignment-info";
@@ -58,6 +70,10 @@ export function createAssignmentView({ document, assignmentsList }) {
     assignmentDiv.appendChild(checkbox);
     assignmentDiv.appendChild(infoDiv);
     return assignmentDiv;
+  }
+
+  function getAssignmentClassName(selected) {
+    return selected ? "assignment-item is-selected" : "assignment-item";
   }
 
   function createBadges(assignment) {
@@ -97,10 +113,11 @@ export function createAssignmentView({ document, assignmentsList }) {
   }
 
   function setAllChecked(checked) {
-    for (const checkbox of assignmentsList.querySelectorAll(
-      ".assignment-checkbox",
-    )) {
+    for (const assignmentItem of assignmentsList.children) {
+      const checkbox = assignmentItem.children[0];
+      if (checkbox?.className !== "assignment-checkbox") continue;
       checkbox.checked = checked;
+      assignmentItem.className = getAssignmentClassName(checked);
     }
   }
 

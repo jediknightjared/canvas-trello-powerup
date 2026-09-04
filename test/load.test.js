@@ -113,7 +113,7 @@ function createElements() {
     weekRange: new FakeElement("span"),
     previousWeekBtn: new FakeElement("button"),
     nextWeekBtn: new FakeElement("button"),
-    currentWeekBtn: new FakeElement("button"),
+    thisWeekFilterBtn: new FakeElement("button"),
     nextWeekFilterBtn: new FakeElement("button"),
     clearDueWeekBtn: new FakeElement("button"),
     selectAllBtn: new FakeElement("button"),
@@ -148,7 +148,7 @@ function createDocument(elements) {
         "#week-range": "weekRange",
         "#previous-week": "previousWeekBtn",
         "#next-week": "nextWeekBtn",
-        "#current-week": "currentWeekBtn",
+        "#current-week": "thisWeekFilterBtn",
         "#next-week-filter": "nextWeekFilterBtn",
         "#clear-due-week": "clearDueWeekBtn",
         "#select-all": "selectAllBtn",
@@ -511,6 +511,82 @@ test("controller applies assignment type and due-week filters", async () => {
   assert.equal(elements.filtersPanel.hidden, true);
 });
 
+test("week filter buttons toggle and remain mutually exclusive", async () => {
+  const { controller, elements } = createControllerHarness();
+  const { formatDateOnly, getMonday } = requireModule("mapper");
+  await controller.initialize();
+  await controller.loadAssignments("123");
+
+  assert.equal(elements.clearDueWeekBtn.getAttribute("aria-pressed"), "true");
+
+  await elements.thisWeekFilterBtn.dispatchEvent("click");
+  const currentWeek = getMonday();
+  assert.equal(elements.thisWeekFilterBtn.getAttribute("aria-pressed"), "true");
+  assert.equal(elements.nextWeekFilterBtn.getAttribute("aria-pressed"), "false");
+  assert.equal(elements.clearDueWeekBtn.getAttribute("aria-pressed"), "false");
+  assert.equal(elements.dueWeekInput.value, formatDateOnly(currentWeek));
+
+  await elements.thisWeekFilterBtn.dispatchEvent("click");
+  assert.equal(elements.thisWeekFilterBtn.getAttribute("aria-pressed"), "false");
+  assert.equal(elements.clearDueWeekBtn.getAttribute("aria-pressed"), "true");
+  assert.equal(elements.dueWeekInput.value, "");
+
+  await elements.nextWeekFilterBtn.dispatchEvent("click");
+  assert.equal(elements.thisWeekFilterBtn.getAttribute("aria-pressed"), "false");
+  assert.equal(elements.nextWeekFilterBtn.getAttribute("aria-pressed"), "true");
+  assert.equal(elements.clearDueWeekBtn.getAttribute("aria-pressed"), "false");
+
+  await elements.clearDueWeekBtn.dispatchEvent("click");
+  assert.equal(elements.nextWeekFilterBtn.getAttribute("aria-pressed"), "false");
+  assert.equal(elements.clearDueWeekBtn.getAttribute("aria-pressed"), "true");
+});
+
+test("changing filters only clears assignments removed by the filter", async () => {
+  const { controller, elements } = createControllerHarness();
+  await controller.initialize();
+  await controller.loadAssignments("123");
+
+  const checkboxes = elements.assignmentsList.querySelectorAll(
+    ".assignment-checkbox",
+  );
+  checkboxes[0].checked = true;
+  await checkboxes[0].dispatchEvent("change");
+  checkboxes[1].checked = true;
+  await checkboxes[1].dispatchEvent("change");
+  assert.equal(elements.importBtn.textContent, "Import 2 Selected to Trello");
+
+  elements.assignmentTypeSelect.value = "quiz";
+  await elements.assignmentTypeSelect.dispatchEvent("change");
+  assert.equal(elements.importBtn.textContent, "Import 1 Selected to Trello");
+
+  elements.assignmentTypeSelect.value = "all";
+  await elements.assignmentTypeSelect.dispatchEvent("change");
+  assert.equal(
+    elements.assignmentsList
+      .querySelectorAll(".assignment-checkbox")
+      .filter((item) => item.checked).length,
+    1,
+  );
+});
+
+test("clicking an assignment row toggles selection and its selected style", async () => {
+  const { controller, elements } = createControllerHarness();
+  await controller.initialize();
+  await controller.loadAssignments("123");
+
+  const row = elements.assignmentsList.children[0];
+  const checkbox = row.children[0];
+  assert.equal(row.className, "assignment-item");
+
+  await row.dispatchEvent("click");
+  assert.equal(checkbox.checked, true);
+  assert.equal(row.className, "assignment-item is-selected");
+
+  await row.dispatchEvent("click");
+  assert.equal(checkbox.checked, false);
+  assert.equal(row.className, "assignment-item");
+});
+
 test("changing filters before selecting a course keeps the course prompt", async () => {
   const { controller, elements } = createControllerHarness();
   await controller.initialize();
@@ -721,7 +797,7 @@ test("the first course selection displays the assignments loading message", asyn
   resolveItems(createCourseItems());
   await pendingLoad;
   assert.equal(elements.selectAllBtn.disabled, false);
-  assert.equal(elements.selectNoneBtn.disabled, false);
+  assert.equal(elements.selectNoneBtn.disabled, true);
 });
 
 test("clearing the course restores the prompt and disables assignment actions", async () => {
@@ -778,6 +854,19 @@ test("selection controls update the import button", async () => {
   await controller.initialize();
   await controller.loadAssignments("123");
 
+  assert.equal(elements.selectAllBtn.textContent, "Select All (5)");
+  assert.equal(elements.selectAllBtn.disabled, false);
+  assert.equal(elements.selectNoneBtn.disabled, true);
+
+  elements.assignmentTypeSelect.value = "quiz";
+  await elements.assignmentTypeSelect.dispatchEvent("change");
+  assert.equal(elements.selectAllBtn.textContent, "Select All (2)");
+  assert.equal(elements.selectAllBtn.disabled, false);
+  assert.equal(elements.selectNoneBtn.disabled, true);
+
+  elements.assignmentTypeSelect.value = "all";
+  await elements.assignmentTypeSelect.dispatchEvent("change");
+
   assert.equal(
     elements.importTooltip.textContent,
     "Select one or more assignments and choose a Trello list to enable importing.",
@@ -802,6 +891,8 @@ test("selection controls update the import button", async () => {
   await checkboxes[0].dispatchEvent("change");
   assert.equal(elements.importBtn.disabled, false);
   assert.equal(elements.importBtn.textContent, "Import 1 Selected to Trello");
+  assert.equal(elements.selectAllBtn.disabled, false);
+  assert.equal(elements.selectNoneBtn.disabled, false);
   assert.equal(elements.importBtn.getAttribute("aria-disabled"), null);
   assert.equal(elements.importBtn.getAttribute("aria-describedby"), null);
   assert.equal(elements.importTooltip.hidden, true);
@@ -819,8 +910,25 @@ test("selection controls update the import button", async () => {
 
   await elements.selectAllBtn.dispatchEvent("click");
   assert.equal(elements.importBtn.textContent, "Import 5 Selected to Trello");
+  assert.equal(elements.selectAllBtn.textContent, "Select All (5)");
+  assert.equal(elements.selectAllBtn.disabled, true);
+  assert.equal(elements.selectNoneBtn.disabled, false);
+  assert.equal(
+    Array.from(elements.assignmentsList.children).every(
+      (row) => row.className === "assignment-item is-selected",
+    ),
+    true,
+  );
 
   await elements.selectNoneBtn.dispatchEvent("click");
+  assert.equal(elements.selectAllBtn.disabled, false);
+  assert.equal(elements.selectNoneBtn.disabled, true);
+  assert.equal(
+    Array.from(elements.assignmentsList.children).every(
+      (row) => row.className === "assignment-item",
+    ),
+    true,
+  );
   assert.equal(elements.importBtn.getAttribute("aria-disabled"), "true");
   assert.equal(elements.importBtn.textContent, "Import 0 Selected to Trello");
   assert.equal(

@@ -16,7 +16,7 @@ const elements = {
   weekRange: document.querySelector("#week-range"),
   previousWeekBtn: document.querySelector("#previous-week"),
   nextWeekBtn: document.querySelector("#next-week"),
-  currentWeekBtn: document.querySelector("#current-week"),
+  thisWeekFilterBtn: document.querySelector("#current-week"),
   nextWeekFilterBtn: document.querySelector("#next-week-filter"),
   clearDueWeekBtn: document.querySelector("#clear-due-week"),
   selectAllBtn: document.querySelector("#select-all"),

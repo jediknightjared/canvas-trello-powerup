@@ -300,6 +300,11 @@ body {
   justify-content: center;
 }
 
+.week-controls > button[aria-pressed="true"] {
+  background: var(--load-surface-neutral);
+  box-shadow: inset 0 0 0 3px var(--load-blue-text);
+}
+
 #due-week {
   height: 38px;
   min-height: 38px;
@@ -337,6 +342,11 @@ body {
   gap: 12px;
   padding: 16px 18px;
   border-bottom: 1px solid var(--load-border);
+  cursor: pointer;
+}
+
+.assignment-item.is-selected {
+  box-shadow: inset 0 0 0 1px var(--load-blue-text);
 }
 
 .assignment-item:last-child {
