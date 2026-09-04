@@ -13,11 +13,13 @@ class FakeElement {
     this.tagName = tagName.toUpperCase();
     this.children = [];
     this.dataset = {};
+    this.attributes = new Map();
     this.listeners = new Map();
     this.style = { display: "" };
     this.className = "";
     this.disabled = false;
     this.checked = false;
+    this.hidden = false;
     this.type = "";
     this.value = "";
     this._innerHTML = "";
@@ -46,6 +48,18 @@ class FakeElement {
     const handlers = this.listeners.get(eventName) || [];
     handlers.push(handler);
     this.listeners.set(eventName, handlers);
+  }
+
+  setAttribute(name, value) {
+    this.attributes.set(name, String(value));
+  }
+
+  removeAttribute(name) {
+    this.attributes.delete(name);
+  }
+
+  getAttribute(name) {
+    return this.attributes.get(name) ?? null;
   }
 
   async dispatchEvent(eventName, event = { target: this }) {
@@ -91,11 +105,14 @@ function createElements() {
     hideCompletedCheckbox: new FakeElement("input"),
     selectAllBtn: new FakeElement("button"),
     selectNoneBtn: new FakeElement("button"),
+    importTooltipContainer: new FakeElement("span"),
+    importTooltip: new FakeElement("span"),
     importBtn: new FakeElement("button"),
     loadingDiv: new FakeElement("div"),
     contentDiv: new FakeElement("div"),
     statusDiv: new FakeElement("div"),
   };
+  elements.importTooltip.hidden = true;
   return elements;
 }
 
@@ -110,6 +127,8 @@ function createDocument(elements) {
         "#hide-completed": "hideCompletedCheckbox",
         "#select-all": "selectAllBtn",
         "#select-none": "selectNoneBtn",
+        "#import-tooltip-container": "importTooltipContainer",
+        "#import-tooltip": "importTooltip",
         "#import-selected": "importBtn",
         "#loading": "loadingDiv",
         "#content": "contentDiv",
@@ -426,7 +445,7 @@ test("switching courses keeps the assignments loading message visible", async ()
   assert.match(elements.assignmentsList.innerHTML, /Loading assignments/);
   assert.equal(elements.selectAllBtn.disabled, true);
   assert.equal(elements.selectNoneBtn.disabled, true);
-  assert.equal(elements.importBtn.disabled, true);
+  assert.equal(elements.importBtn.getAttribute("aria-disabled"), "true");
 
   resolveSecondLoad(createCourseItems());
   await pendingLoad;
@@ -471,7 +490,7 @@ test("clearing the course restores the prompt and disables assignment actions", 
   assert.match(elements.assignmentsList.innerHTML, /Select a course/);
   assert.equal(elements.selectAllBtn.disabled, true);
   assert.equal(elements.selectNoneBtn.disabled, true);
-  assert.equal(elements.importBtn.disabled, true);
+  assert.equal(elements.importBtn.getAttribute("aria-disabled"), "true");
   assert.equal(elements.importBtn.textContent, "Import 0 Selected to Trello");
 });
 
@@ -512,7 +531,23 @@ test("selection controls update the import button", async () => {
   const { controller, elements } = createControllerHarness();
   await controller.initialize();
   await controller.loadAssignments("123");
+
+  assert.equal(
+    elements.importTooltip.textContent,
+    "Select one or more assignments and choose a Trello list to enable importing.",
+  );
+  assert.equal(elements.importBtn.getAttribute("aria-disabled"), "true");
+  assert.equal(
+    elements.importBtn.getAttribute("aria-describedby"),
+    "import-tooltip",
+  );
+
   elements.listSelect.value = "list-1";
+  await elements.listSelect.dispatchEvent("change");
+  assert.equal(
+    elements.importTooltip.textContent,
+    "Select one or more assignments to enable importing.",
+  );
 
   const checkboxes = elements.assignmentsList.querySelectorAll(
     ".assignment-checkbox",
@@ -521,13 +556,79 @@ test("selection controls update the import button", async () => {
   await checkboxes[0].dispatchEvent("change");
   assert.equal(elements.importBtn.disabled, false);
   assert.equal(elements.importBtn.textContent, "Import 1 Selected to Trello");
+  assert.equal(elements.importBtn.getAttribute("aria-disabled"), null);
+  assert.equal(elements.importBtn.getAttribute("aria-describedby"), null);
+  assert.equal(elements.importTooltip.hidden, true);
+
+  elements.listSelect.value = "";
+  await elements.listSelect.dispatchEvent("change");
+  assert.equal(elements.importBtn.getAttribute("aria-disabled"), "true");
+  assert.equal(
+    elements.importTooltip.textContent,
+    "Choose a Trello list to enable importing.",
+  );
+
+  elements.listSelect.value = "list-1";
+  await elements.listSelect.dispatchEvent("change");
 
   await elements.selectAllBtn.dispatchEvent("click");
   assert.equal(elements.importBtn.textContent, "Import 5 Selected to Trello");
 
   await elements.selectNoneBtn.dispatchEvent("click");
-  assert.equal(elements.importBtn.disabled, true);
+  assert.equal(elements.importBtn.getAttribute("aria-disabled"), "true");
   assert.equal(elements.importBtn.textContent, "Import 0 Selected to Trello");
+  assert.equal(
+    elements.importTooltip.textContent,
+    "Select one or more assignments to enable importing.",
+  );
+});
+
+test("import tooltip supports hover, keyboard focus, and Escape dismissal", async () => {
+  const { controller, elements } = createControllerHarness();
+  await controller.initialize();
+
+  assert.equal(elements.importTooltip.hidden, true);
+  await elements.importTooltipContainer.dispatchEvent("mouseenter");
+  assert.equal(elements.importTooltip.hidden, false);
+  await elements.importTooltipContainer.dispatchEvent("mouseleave");
+  assert.equal(elements.importTooltip.hidden, true);
+
+  await elements.importBtn.dispatchEvent("focus");
+  assert.equal(elements.importTooltip.hidden, false);
+  await elements.importBtn.dispatchEvent("keydown", {
+    key: "Escape",
+    target: elements.importBtn,
+  });
+  assert.equal(elements.importTooltip.hidden, true);
+
+  await elements.importBtn.dispatchEvent("focus");
+  await elements.importBtn.dispatchEvent("blur");
+  assert.equal(elements.importTooltip.hidden, true);
+});
+
+test("the aria-disabled import button cannot import without a list", async () => {
+  const { cards, controller, elements } = createControllerHarness({
+    createCard: async () => {
+      throw new Error("Preview failure prevents the success timer");
+    },
+  });
+  await controller.initialize();
+  await controller.loadAssignments("123");
+
+  const checkbox = elements.assignmentsList.querySelectorAll(
+    ".assignment-checkbox",
+  )[0];
+  checkbox.checked = true;
+  await checkbox.dispatchEvent("change");
+  assert.equal(elements.importBtn.getAttribute("aria-disabled"), "true");
+
+  await elements.importBtn.dispatchEvent("click");
+  assert.equal(cards.length, 0);
+
+  elements.listSelect.value = "list-1";
+  await elements.listSelect.dispatchEvent("change");
+  await elements.importBtn.dispatchEvent("click");
+  assert.equal(cards.length, 1);
 });
 
 test("createCard authorizes Trello and sends the expected card payload", async () => {

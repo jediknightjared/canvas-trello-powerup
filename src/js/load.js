@@ -16,6 +16,8 @@ const elements = {
   hideCompletedCheckbox: document.querySelector("#hide-completed"),
   selectAllBtn: document.querySelector("#select-all"),
   selectNoneBtn: document.querySelector("#select-none"),
+  importTooltipContainer: document.querySelector("#import-tooltip-container"),
+  importTooltip: document.querySelector("#import-tooltip"),
   importBtn: document.querySelector("#import-selected"),
   loadingDiv: document.querySelector("#loading"),
   contentDiv: document.querySelector("#content"),

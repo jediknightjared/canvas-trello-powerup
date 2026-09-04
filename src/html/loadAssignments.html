@@ -111,6 +111,33 @@
         margin-top: 20px;
         text-align: center;
       }
+      .import-tooltip-container {
+        position: relative;
+        display: inline-block;
+      }
+      .import-tooltip {
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 50%;
+        z-index: 1;
+        width: max-content;
+        max-width: 240px;
+        padding: 6px 8px;
+        border-radius: 4px;
+        background: #172b4d;
+        color: #fff;
+        font-size: 12px;
+        line-height: 16px;
+        text-align: left;
+        transform: translateX(-50%);
+      }
+      .import-tooltip[hidden] {
+        display: none;
+      }
+      #import-selected[aria-disabled="true"] {
+        cursor: not-allowed;
+        opacity: 0.5;
+      }
       .error {
         color: #d32f2f;
         background: #ffebee;
@@ -170,9 +197,23 @@
           <button id="select-none" class="mod-secondary" disabled>
             Select None
           </button>
-          <button id="import-selected" class="mod-primary" disabled>
-            Import Selected to Trello
-          </button>
+          <span
+            id="import-tooltip-container"
+            class="import-tooltip-container"
+          >
+            <button
+              id="import-selected"
+              class="mod-primary"
+              aria-disabled="true"
+              aria-describedby="import-tooltip"
+            >
+              Import Selected to Trello
+            </button>
+            <span id="import-tooltip" class="import-tooltip" role="tooltip" hidden>
+              Select one or more assignments and choose a Trello list to enable
+              importing.
+            </span>
+          </span>
         </div>
       </div>
 

@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "node --test",
+    "preview": "node preview-server.js",
     "start": "node server.js",
     "build": "parcel build src/html/*.html"
   },

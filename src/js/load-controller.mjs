@@ -22,6 +22,8 @@ export function createLoadController({
     hideCompletedCheckbox,
     selectAllBtn,
     selectNoneBtn,
+    importTooltipContainer,
+    importTooltip,
     importBtn,
   } = elements;
   const ui = createUi({ document, ...elements });
@@ -161,23 +163,74 @@ export function createLoadController({
   }
 
   function updateImportButton() {
+    if (state.importing) {
+      importBtn.disabled = true;
+      importBtn.textContent = "Importing...";
+      setImportGuidance("");
+      return;
+    }
+
     const count = getVisibleSelectedIndexes().length;
-    importBtn.disabled = count === 0 || !listSelect.value;
+    const needsAssignments = count === 0;
+    const needsList = !listSelect.value;
+    const guidance = getImportGuidance(needsAssignments, needsList);
+
+    importBtn.disabled = false;
     importBtn.textContent = `Import ${count} Selected to Trello`;
+    setImportGuidance(guidance);
+  }
+
+  function getImportGuidance(needsAssignments, needsList) {
+    if (needsAssignments && needsList) {
+      return "Select one or more assignments and choose a Trello list to enable importing.";
+    }
+    if (needsAssignments) {
+      return "Select one or more assignments to enable importing.";
+    }
+    if (needsList) return "Choose a Trello list to enable importing.";
+    return "";
+  }
+
+  function setImportGuidance(message) {
+    if (message) {
+      importBtn.setAttribute("aria-disabled", "true");
+      importBtn.setAttribute("aria-describedby", "import-tooltip");
+      importTooltip.textContent = message;
+    } else {
+      importBtn.removeAttribute("aria-disabled");
+      importBtn.removeAttribute("aria-describedby");
+      hideImportTooltip();
+    }
+  }
+
+  function showImportTooltip() {
+    if (importBtn.getAttribute("aria-disabled") === "true") {
+      importTooltip.hidden = false;
+    }
+  }
+
+  function hideImportTooltip() {
+    importTooltip.hidden = true;
   }
 
   async function importSelected() {
     const selectedIndexes = getVisibleSelectedIndexes();
-    if (state.importing || selectedIndexes.length === 0) return;
+    if (
+      state.importing ||
+      selectedIndexes.length === 0 ||
+      !listSelect.value
+    ) {
+      return;
+    }
     state.importing = true;
-    importBtn.disabled = true;
-    importBtn.textContent = "Importing...";
+    updateImportButton();
 
     const selectedAssignments = state.assignments.filter((assignment) =>
       selectedIndexes.includes(assignment.sourceIndex),
     );
     let succeeded = 0;
     const failed = [];
+    let importCompleted = false;
 
     try {
       for (const assignment of selectedAssignments) {
@@ -195,21 +248,19 @@ export function createLoadController({
           `Successfully imported ${succeeded} assignment(s) to Trello!`,
         );
         importBtn.textContent = "Import Complete";
+        importCompleted = true;
         setTimeout(closeModal, 2000);
       } else {
         ui.showError(
           `Imported ${succeeded}, failed ${failed.length}: ${failed.join(", ")}`,
         );
-        importBtn.disabled = false;
-        importBtn.textContent = "Import Selected to Trello";
       }
     } catch (error) {
       logger.error("Error importing assignments:", error);
       ui.showError("Failed to import assignments. Please try again.");
-      importBtn.disabled = false;
-      importBtn.textContent = "Import Selected to Trello";
     } finally {
       state.importing = false;
+      if (!importCompleted) updateImportButton();
     }
   }
 
@@ -232,6 +283,13 @@ export function createLoadController({
     selectAllBtn.addEventListener("click", selectAll);
     selectNoneBtn.addEventListener("click", selectNone);
     importBtn.addEventListener("click", importSelected);
+    importTooltipContainer.addEventListener("mouseenter", showImportTooltip);
+    importTooltipContainer.addEventListener("mouseleave", hideImportTooltip);
+    importBtn.addEventListener("focus", showImportTooltip);
+    importBtn.addEventListener("blur", hideImportTooltip);
+    importBtn.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") hideImportTooltip();
+    });
   }
 
   return {
