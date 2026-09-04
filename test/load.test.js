@@ -83,7 +83,7 @@ class FakeElement {
 }
 
 function createElements() {
-  return {
+  const elements = {
     listSelect: new FakeElement("select"),
     courseSelect: new FakeElement("select"),
     assignmentsSection: new FakeElement("section"),
@@ -96,6 +96,7 @@ function createElements() {
     contentDiv: new FakeElement("div"),
     statusDiv: new FakeElement("div"),
   };
+  return elements;
 }
 
 function createDocument(elements) {
@@ -371,7 +372,7 @@ test("controller renders course items and preserves the hide-completed behavior"
       "Ungraded discussionDiscussion",
     ],
   );
-  assert.equal(elements.assignmentsSection.style.display, "block");
+  assert.equal(elements.assignmentsSection.style.display, "");
 
   elements.hideCompletedCheckbox.checked = true;
   await elements.hideCompletedCheckbox.dispatchEvent("change");
@@ -411,13 +412,67 @@ test("switching courses keeps the assignments loading message visible", async ()
 
   await controller.initialize();
   await controller.loadAssignments("first-course");
+  elements.listSelect.value = "list-1";
+  const firstCheckbox = elements.assignmentsList.querySelectorAll(
+    ".assignment-checkbox",
+  )[0];
+  firstCheckbox.checked = true;
+  await firstCheckbox.dispatchEvent("change");
+  assert.equal(elements.importBtn.disabled, false);
+
   const pendingLoad = controller.loadAssignments("second-course");
 
-  assert.equal(elements.assignmentsSection.style.display, "block");
+  assert.equal(elements.assignmentsSection.style.display, "");
   assert.match(elements.assignmentsList.innerHTML, /Loading assignments/);
+  assert.equal(elements.selectAllBtn.disabled, true);
+  assert.equal(elements.selectNoneBtn.disabled, true);
+  assert.equal(elements.importBtn.disabled, true);
 
   resolveSecondLoad(createCourseItems());
   await pendingLoad;
+});
+
+test("the first course selection displays the assignments loading message", async () => {
+  let resolveItems;
+  const itemsPending = new Promise((resolve) => {
+    resolveItems = resolve;
+  });
+  const { controller, elements } = createControllerHarness({
+    getCourseItems: async () => itemsPending,
+  });
+
+  await controller.initialize();
+  assert.equal(elements.assignmentsSection.style.display, "");
+  assert.match(elements.assignmentsList.innerHTML, /Select a course/);
+  assert.equal(elements.selectAllBtn.disabled, true);
+  assert.equal(elements.selectNoneBtn.disabled, true);
+
+  const pendingLoad = controller.loadAssignments("first-course");
+  assert.equal(elements.assignmentsSection.style.display, "");
+  assert.match(elements.assignmentsList.innerHTML, /Loading assignments/);
+  assert.equal(elements.selectAllBtn.disabled, true);
+  assert.equal(elements.selectNoneBtn.disabled, true);
+
+  resolveItems(createCourseItems());
+  await pendingLoad;
+  assert.equal(elements.selectAllBtn.disabled, false);
+  assert.equal(elements.selectNoneBtn.disabled, false);
+});
+
+test("clearing the course restores the prompt and disables assignment actions", async () => {
+  const { controller, elements } = createControllerHarness();
+  await controller.initialize();
+  await controller.loadAssignments("123");
+
+  elements.courseSelect.value = "";
+  await elements.courseSelect.dispatchEvent("change");
+
+  assert.equal(elements.assignmentsSection.style.display, "");
+  assert.match(elements.assignmentsList.innerHTML, /Select a course/);
+  assert.equal(elements.selectAllBtn.disabled, true);
+  assert.equal(elements.selectNoneBtn.disabled, true);
+  assert.equal(elements.importBtn.disabled, true);
+  assert.equal(elements.importBtn.textContent, "Import 0 Selected to Trello");
 });
 
 test("a Trello list failure does not prevent Canvas courses from loading", async () => {

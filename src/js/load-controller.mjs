@@ -34,6 +34,7 @@ export function createLoadController({
 
   async function initialize() {
     bindEvents();
+    showCoursePrompt();
 
     await Promise.all([loadLists(), initializeCanvas()]);
   }
@@ -87,18 +88,19 @@ export function createLoadController({
   }
 
   async function loadAssignments(courseId) {
-    assignmentsList.innerHTML =
-      '<div class="loading">Loading assignments...</div>';
     state.assignments = [];
     state.selectedIndexes.clear();
+    setSelectionControlsEnabled(false);
+    updateImportButton();
+    assignmentView.renderMessage("Loading assignments...", "loading");
 
     try {
       const sources = await canvasApi.getCourseItems(courseId);
       state.assignments = mergeCourseItems(sources);
       displayCurrentAssignments();
-      assignmentsSection.style.display = "block";
     } catch (error) {
       logger.error("Error loading assignments:", error);
+      assignmentView.renderMessage("Unable to load assignments for this course.");
       ui.showError(getAssignmentsError(error));
     }
   }
@@ -118,7 +120,21 @@ export function createLoadController({
       emptyMessage,
       handleAssignmentSelectionChange,
     );
+    setSelectionControlsEnabled(assignments.length > 0);
     updateImportButton();
+  }
+
+  function showCoursePrompt() {
+    state.assignments = [];
+    state.selectedIndexes.clear();
+    assignmentView.renderMessage("Select a course to view assignments.");
+    setSelectionControlsEnabled(false);
+    updateImportButton();
+  }
+
+  function setSelectionControlsEnabled(enabled) {
+    selectAllBtn.disabled = !enabled;
+    selectNoneBtn.disabled = !enabled;
   }
 
   function handleAssignmentSelectionChange(index, checked) {
@@ -209,7 +225,7 @@ export function createLoadController({
       if (event.target.value) {
         loadAssignments(event.target.value);
       } else {
-        assignmentsSection.style.display = "none";
+        showCoursePrompt();
       }
     });
     hideCompletedCheckbox.addEventListener("change", displayCurrentAssignments);

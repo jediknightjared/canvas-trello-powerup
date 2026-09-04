@@ -6,7 +6,7 @@ export function createAssignmentView({ document, assignmentsList }) {
     renderedIndexes = assignments.map((assignment) => assignment.sourceIndex);
 
     if (assignments.length === 0) {
-      assignmentsList.innerHTML = `<div style="padding: 20px; text-align: center; color: #666;">${emptyMessage}</div>`;
+      renderMessage(emptyMessage);
       return;
     }
 
@@ -15,6 +15,11 @@ export function createAssignmentView({ document, assignmentsList }) {
         createAssignmentElement(assignment, selectedIndexes, onSelectionChange),
       );
     });
+  }
+
+  function renderMessage(message, className = "empty-state") {
+    renderedIndexes = [];
+    assignmentsList.innerHTML = `<div class="${className}">${message}</div>`;
   }
 
   function createAssignmentElement(
@@ -103,5 +108,5 @@ export function createAssignmentView({ document, assignmentsList }) {
     return renderedIndexes;
   }
 
-  return { getRenderedIndexes, render, setAllChecked };
+  return { getRenderedIndexes, render, renderMessage, setAllChecked };
 }
