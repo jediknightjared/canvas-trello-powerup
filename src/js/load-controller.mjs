@@ -51,6 +51,7 @@ export function createLoadController({
   const assignmentView = createAssignmentView({ document, assignmentsList });
   const state = {
     assignments: [],
+    courses: [],
     selectedCourseId: "",
     selectedIndexes: new Set(),
     importedUrls: new Set(),
@@ -142,6 +143,7 @@ export function createLoadController({
       );
     }
 
+    state.courses = courses;
     renderOptions(
       document,
       courseSelect,
@@ -165,7 +167,14 @@ export function createLoadController({
 
     try {
       const sources = await canvasApi.getCourseItems(courseId);
-      state.assignments = mergeCourseItems(sources);
+      const course = state.courses.find(
+        (candidate) => String(candidate.id) === String(courseId),
+      );
+      state.assignments = mergeCourseItems(sources).map((assignment) => ({
+        ...assignment,
+        courseId,
+        courseName: course?.name || String(courseId),
+      }));
       displayCurrentAssignments();
     } catch (error) {
       logger.error("Error loading assignments:", error);

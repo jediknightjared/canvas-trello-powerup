@@ -31,6 +31,26 @@ app.get(["/", "/loadAssignments.html"], (_request, response) => {
   response.type("html").send(html.replace(productionScript, previewScript));
 });
 
+app.get("/syncAssignments.html", (_request, response) => {
+  const htmlPath = path.join(
+    projectRoot,
+    "src",
+    "html",
+    "syncAssignments.html",
+  );
+  const productionScript = '<script type="module" src="../js/sync.js"></script>';
+  const previewScript =
+    '<script type="module" src="/preview/sync-preview.js"></script>';
+  const html = fs.readFileSync(htmlPath, "utf8");
+
+  if (!html.includes(productionScript)) {
+    response.status(500).send("Unable to locate the production sync script.");
+    return;
+  }
+
+  response.type("html").send(html.replace(productionScript, previewScript));
+});
+
 app.listen(previewPort, "127.0.0.1", () => {
   console.log(`Assignment preview: http://127.0.0.1:${previewPort}`);
 });

@@ -1,0 +1,82 @@
+html,
+body {
+  min-height: 100%;
+}
+
+:root {
+  --sync-surface: var(--ds-surface, #ffffff);
+  --sync-text: var(--ds-text, #172b4d);
+  --sync-subtle: var(--ds-text-subtle, #5e6c84);
+  --sync-success: var(--ds-text-success, #216e4e);
+  --sync-error: var(--ds-text-danger, #ae2e24);
+}
+
+body {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 28px;
+  color: var(--sync-text);
+  background: var(--sync-surface);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
+#content {
+  width: min(100%, 900px);
+  margin: 0 auto;
+}
+
+h1 {
+  margin: 0 0 20px;
+  font-size: 1.35rem;
+}
+
+#progress {
+  color: var(--sync-subtle);
+}
+
+#progress.success {
+  color: var(--sync-success);
+}
+
+#progress.error {
+  color: var(--sync-error);
+}
+
+#summary {
+  margin: 24px 0;
+}
+
+#summary h2 {
+  margin: 20px 0 8px;
+  font-size: 1rem;
+}
+
+#sync-results {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#sync-results th,
+#sync-results td {
+  padding: 10px 12px;
+  border: 1px solid var(--load-border, #dfe1e6);
+  text-align: left;
+}
+
+#sync-results th {
+  font-weight: 600;
+}
+
+#sync-results .placeholder {
+  color: var(--sync-subtle);
+}
+
+#summary ul {
+  margin-top: 0;
+  padding-left: 22px;
+}

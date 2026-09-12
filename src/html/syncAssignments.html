@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="https://p.trellocdn.com/@atlaskit-themes.min.css" />
+    <link rel="stylesheet" href="https://p.trellocdn.com/power-up.css" />
+    <link rel="stylesheet" href="../css/sync-assignments.css" />
+    <script src="https://p.trellocdn.com/power-up.min.js" crossorigin="anonymous"></script>
+    <script>
+      window.canvasPowerUp = window.TrelloPowerUp.iframe({
+        appKey: "b5c06882ca740f9920dae402dfbb8341",
+        appName: "Canvas PowerUp",
+      });
+    </script>
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js" crossorigin="anonymous"></script>
+    <title>Sync Canvas Assignment Status</title>
+  </head>
+  <body>
+    <main id="content">
+      <h1>Sync Assignment Status</h1>
+      <p id="progress" role="status" aria-live="polite">Starting sync...</p>
+      <section id="summary" aria-live="polite">
+        <p id="scan-summary"></p>
+        <h2>Sync results</h2>
+        <table id="sync-results">
+          <thead>
+            <tr>
+              <th scope="col">Assignment name</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody id="sync-results-body">
+            <tr>
+              <td colspan="2" class="placeholder">No eligible cards found.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <button id="close" class="mod-primary" type="button" hidden>Close</button>
+    </main>
+    <script type="module" src="../js/sync.js"></script>
+  </body>
+</html>
