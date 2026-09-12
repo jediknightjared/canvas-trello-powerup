@@ -76,6 +76,17 @@ TrelloPowerUp.initialize({
           });
         },
       },
+      {
+        text: "Sync Assignment Status",
+        condition: "always",
+        callback: function (t, options) {
+          t.modal({
+            title: "Sync Assignment Status",
+            url: "/syncAssignments.html",
+            fullscreen: true,
+          });
+        },
+      },
     ];
   },
   "card-badges": async function (t, options) {

@@ -5,6 +5,7 @@ import {
   mergeCourseItems,
 } from "./assignment-mapper.mjs";
 import { createAssignmentView } from "./assignment-view.mjs";
+import { isValidCanvasDomain } from "./canvas-url.mjs";
 import { createUi } from "./ui.mjs";
 
 const STATUS_MESSAGES = {
@@ -51,6 +52,7 @@ export function createLoadController({
   const assignmentView = createAssignmentView({ document, assignmentsList });
   const state = {
     assignments: [],
+    courses: [],
     selectedCourseId: "",
     selectedIndexes: new Set(),
     importedUrls: new Set(),
@@ -142,6 +144,7 @@ export function createLoadController({
       );
     }
 
+    state.courses = courses;
     renderOptions(
       document,
       courseSelect,
@@ -165,7 +168,14 @@ export function createLoadController({
 
     try {
       const sources = await canvasApi.getCourseItems(courseId);
-      state.assignments = mergeCourseItems(sources);
+      const course = state.courses.find(
+        (candidate) => String(candidate.id) === String(courseId),
+      );
+      state.assignments = mergeCourseItems(sources).map((assignment) => ({
+        ...assignment,
+        courseId,
+        courseName: course?.name || String(courseId),
+      }));
       displayCurrentAssignments();
     } catch (error) {
       logger.error("Error loading assignments:", error);
@@ -593,8 +603,7 @@ function validateCredentials({ domain, token }) {
     );
   }
 
-  const domainRegex = /^([\w-]+\.instructure\.com|canvas\.[\w.-]+\.[\w]+)$/;
-  if (!domainRegex.test(domain)) {
+  if (!isValidCanvasDomain(domain)) {
     throw new Error(
       "Invalid Canvas domain format. Please use your institution's Canvas URL (e.g., university.instructure.com).",
     );

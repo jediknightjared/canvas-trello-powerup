@@ -1,5 +1,9 @@
+import { parseCanvasUrl } from "./canvas-url.mjs";
+import { isSubmitted } from "./assignment-mapper.mjs";
+
 export function createCanvasApi({ socket, getCredentials }) {
   let requestSequence = 0;
+  const courseAssignmentsCache = new Map();
 
   async function getCourses() {
     const courses = await fetchCollection(
@@ -21,12 +25,7 @@ export function createCanvasApi({ socket, getCredentials }) {
   async function getCourseItems(courseId) {
     const [assignmentsResult, quizzesResult, discussionsResult] =
       await Promise.allSettled([
-        fetchCollection(
-          buildCanvasUrl(`/api/v1/courses/${courseId}/assignments`, {
-            per_page: "100",
-            "include[]": "submission",
-          }),
-        ),
+        getCourseAssignmentsWithSubmissions(courseId),
         fetchCollection(
           buildCanvasUrl(`/api/v1/courses/${courseId}/quizzes`, {
             per_page: "100",
@@ -46,6 +45,61 @@ export function createCanvasApi({ socket, getCredentials }) {
     };
   }
 
+  async function getCompletionForUrl(url) {
+    const { domain } = getCredentials();
+    const parsed = parseCanvasUrl(url, domain);
+    if (!parsed) {
+      return {
+        state: "unavailable",
+        reason: "Unsupported Canvas URL or a different Canvas domain.",
+      };
+    }
+
+    if (parsed.type === "assignments") {
+      const assignment = await fetchJSON(
+        buildCanvasUrl(
+          `/api/v1/courses/${parsed.courseId}/assignments/${parsed.itemId}`,
+          { "include[]": "submission" },
+        ),
+      );
+      return completionFromSubmission(assignment?.submission);
+    }
+
+    if (parsed.type === "quizzes") {
+      const quizSubmission = await fetchJSON(
+        buildCanvasUrl(
+          `/api/v1/courses/${parsed.courseId}/quizzes/${parsed.itemId}/submission`,
+          { "include[]": "submission" },
+        ),
+      );
+      if (!Array.isArray(quizSubmission?.quiz_submissions)) {
+        throw new Error("Unexpected response from Canvas quiz submission API");
+      }
+
+      return {
+        state: quizSubmission.quiz_submissions.some(isQuizSubmitted)
+          ? "complete"
+          : "incomplete",
+      };
+    }
+
+    const assignments = await getCourseAssignmentsWithSubmissions(
+      parsed.courseId,
+    );
+    const discussionAssignment = assignments.find(
+      (assignment) =>
+        String(assignment.discussion_topic?.id) === String(parsed.itemId),
+    );
+    if (!discussionAssignment) {
+      return {
+        state: "unavailable",
+        reason: "This discussion has no Canvas submission state.",
+      };
+    }
+
+    return completionFromSubmission(discussionAssignment.submission);
+  }
+
   async function fetchCollection(url, perPage = 100) {
     const results = [];
 
@@ -62,6 +116,26 @@ export function createCanvasApi({ socket, getCredentials }) {
       results.push(...pageResults);
       if (pageResults.length < perPage) return results;
     }
+  }
+
+  function getCourseAssignmentsWithSubmissions(courseId) {
+    const cacheKey = String(courseId);
+    const cached = courseAssignmentsCache.get(cacheKey);
+    if (cached) return cached;
+
+    const request = fetchCollection(
+      buildCanvasUrl(`/api/v1/courses/${courseId}/assignments`, {
+        per_page: "100",
+        "include[]": "submission",
+      }),
+    );
+    courseAssignmentsCache.set(cacheKey, request);
+    request.catch(() => {
+      if (courseAssignmentsCache.get(cacheKey) === request) {
+        courseAssignmentsCache.delete(cacheKey);
+      }
+    });
+    return request;
   }
 
   function buildCanvasUrl(pathname, searchParams = {}) {
@@ -115,7 +189,28 @@ export function createCanvasApi({ socket, getCredentials }) {
     });
   }
 
-  return { fetchCollection, getCourses, getCourseItems };
+  async function fetchJSON(url, options) {
+    return serverFetchJSON(url, options);
+  }
+
+  return {
+    fetchCollection,
+    getCompletionForUrl,
+    getCourses,
+    getCourseItems,
+  };
+}
+
+function completionFromSubmission(submission) {
+  return { state: isSubmitted(submission) ? "complete" : "incomplete" };
+}
+
+function isQuizSubmitted(submission) {
+  return (
+    Boolean(submission?.finished_at) ||
+    submission?.workflow_state === "complete" ||
+    submission?.workflow_state === "pending_review"
+  );
 }
 
 function fulfilledArray(result) {
