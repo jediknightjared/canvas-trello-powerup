@@ -2,7 +2,12 @@ import { toTrelloDescription } from "./assignment-mapper.mjs";
 
 export const COURSE_CUSTOM_FIELD_NAME = "Canvas Course";
 
-export function createTrelloApi({ trello, appKey, fetchImpl = fetch }) {
+export function createTrelloApi({
+  trello,
+  appKey,
+  fetchImpl = fetch,
+  logger = console,
+}) {
   let tokenPromise;
   let courseFieldPromise;
 
@@ -20,9 +25,6 @@ export function createTrelloApi({ trello, appKey, fetchImpl = fetch }) {
 
   async function createCard(assignment, listId) {
     const token = await getAuthorizedToken();
-    const courseField = assignment.courseName
-      ? await getOrCreateCourseField(token)
-      : null;
 
     const params = new URLSearchParams({
       key: appKey,
@@ -45,24 +47,30 @@ export function createTrelloApi({ trello, appKey, fetchImpl = fetch }) {
       throw new Error(`Trello API error: ${response.status}`);
     }
 
-    if (!courseField) return;
-
     const card = await readJson(response);
-    if (!card?.id) {
-      throw new Error("Trello card creation did not return a card ID");
+    if (!assignment.courseName || !card?.id) return card;
+
+    try {
+      const courseField = await getOrCreateCourseField(token);
+      await trelloRequest(
+        `/cards/${card.id}/customField/${courseField.id}/item`,
+        token,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            value: { text: String(assignment.courseName) },
+          }),
+        },
+      );
+    } catch (error) {
+      logger.warn?.(
+        "Canvas Course custom field enrichment failed after card creation:",
+        error,
+      );
     }
 
-    await trelloRequest(
-      `/cards/${card.id}/customField/${courseField.id}/item`,
-      token,
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          value: { text: String(assignment.courseName) },
-        }),
-      },
-    );
+    return card;
   }
 
   async function updateCardDueComplete(cardId, completed) {

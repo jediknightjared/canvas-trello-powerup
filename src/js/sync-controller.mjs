@@ -1,4 +1,4 @@
-import { parseCanvasUrl } from "./canvas-url.mjs";
+import { isValidCanvasDomain, parseCanvasUrl } from "./canvas-url.mjs";
 
 export async function syncBoardCards({
   cards,
@@ -217,6 +217,12 @@ function setText(element, text) {
 function validateCredentials({ domain, token }) {
   if (!domain || !token) {
     throw new Error("Canvas domain and API token must be configured first.");
+  }
+
+  if (!isValidCanvasDomain(domain)) {
+    throw new Error(
+      "Invalid Canvas domain format. Please use your institution's Canvas URL (e.g., university.instructure.com).",
+    );
   }
 }
 

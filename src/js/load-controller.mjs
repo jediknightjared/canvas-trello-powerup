@@ -5,6 +5,7 @@ import {
   mergeCourseItems,
 } from "./assignment-mapper.mjs";
 import { createAssignmentView } from "./assignment-view.mjs";
+import { isValidCanvasDomain } from "./canvas-url.mjs";
 import { createUi } from "./ui.mjs";
 
 const STATUS_MESSAGES = {
@@ -602,8 +603,7 @@ function validateCredentials({ domain, token }) {
     );
   }
 
-  const domainRegex = /^([\w-]+\.instructure\.com|canvas\.[\w.-]+\.[\w]+)$/;
-  if (!domainRegex.test(domain)) {
+  if (!isValidCanvasDomain(domain)) {
     throw new Error(
       "Invalid Canvas domain format. Please use your institution's Canvas URL (e.g., university.instructure.com).",
     );

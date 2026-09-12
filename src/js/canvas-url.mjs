@@ -1,5 +1,11 @@
 const CANVAS_PATH =
   /^\/courses\/(\d+)\/(assignments|quizzes|discussion_topics)\/(\d+)\/?$/;
+const CANVAS_DOMAIN =
+  /^(?:[\w-]+\.instructure\.com|canvas\.[\w.-]+\.[\w]+)$/;
+
+export function isValidCanvasDomain(domain) {
+  return typeof domain === "string" && CANVAS_DOMAIN.test(domain);
+}
 
 export function parseCanvasUrl(value, expectedDomain) {
   if (!value || !expectedDomain) return null;

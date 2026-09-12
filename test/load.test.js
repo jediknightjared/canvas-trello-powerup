@@ -1047,6 +1047,7 @@ test("createCard creates and assigns the Canvas Course custom field", async () =
     }),
   };
   const responses = [
+    { ok: true, status: 200, json: async () => ({ id: "card-id" }) },
     { ok: true, status: 200, json: async () => [] },
     {
       ok: true,
@@ -1058,7 +1059,6 @@ test("createCard creates and assigns the Canvas Course custom field", async () =
         display: { cardFront: true },
       }),
     },
-    { ok: true, status: 200, json: async () => ({ id: "card-id" }) },
     { ok: true, status: 200, json: async () => ({}) },
   ];
   const api = createTrelloApi({
@@ -1082,11 +1082,13 @@ test("createCard creates and assigns the Canvas Course custom field", async () =
   );
 
   assert.equal(requests.length, 4);
-  assert.match(requests[0].url, /\/boards\/board-id\/customFields/);
-  assert.equal(requests[0].options.method, "GET");
-  assert.match(requests[1].url, /\/customFields\?/);
-  assert.equal(requests[1].options.method, "POST");
-  assert.deepEqual(JSON.parse(requests[1].options.body), {
+  assert.match(requests[0].url, /\/cards\?/);
+  assert.equal(requests[0].options.method, "POST");
+  assert.match(requests[1].url, /\/boards\/board-id\/customFields/);
+  assert.equal(requests[1].options.method, "GET");
+  assert.match(requests[2].url, /\/customFields\?/);
+  assert.equal(requests[2].options.method, "POST");
+  assert.deepEqual(JSON.parse(requests[2].options.body), {
     idModel: "board-id",
     modelType: "board",
     name: "Canvas Course",
@@ -1094,8 +1096,6 @@ test("createCard creates and assigns the Canvas Course custom field", async () =
     pos: "bottom",
     display_cardFront: true,
   });
-  assert.match(requests[2].url, /\/cards\?/);
-  assert.equal(requests[2].options.method, "POST");
   assert.match(
     requests[3].url,
     /\/cards\/card-id\/customField\/course-field-id\/item\?/,
@@ -1117,6 +1117,7 @@ test("createCard reuses the existing Canvas Course field and enables card-front 
     }),
   };
   const responses = [
+    { ok: true, status: 200, json: async () => ({ id: "card-1" }) },
     {
       ok: true,
       status: 200,
@@ -1130,7 +1131,6 @@ test("createCard reuses the existing Canvas Course field and enables card-front 
       ],
     },
     { ok: true, status: 200, json: async () => ({}) },
-    { ok: true, status: 200, json: async () => ({ id: "card-1" }) },
     { ok: true, status: 200, json: async () => ({}) },
     { ok: true, status: 200, json: async () => ({ id: "card-2" }) },
     { ok: true, status: 200, json: async () => ({}) },
@@ -1176,4 +1176,96 @@ test("createCard reuses the existing Canvas Course field and enables card-front 
       .length,
     2,
   );
+});
+
+test("createCard keeps the card when Canvas Course field setup is unavailable", async () => {
+  const { createTrelloApi } = requireModule("trello");
+  const requests = [];
+  const warnings = [];
+  const api = createTrelloApi({
+    trello: {
+      board: async () => ({ id: "board-id" }),
+      getRestApi: async () => ({
+        isAuthorized: async () => true,
+        getToken: async () => "trello-token",
+      }),
+    },
+    appKey: "app-key",
+    logger: { warn: (...args) => warnings.push(args) },
+    fetchImpl: async (url, options) => {
+      requests.push({ url, options });
+      if (requests.length === 1) {
+        return { ok: true, status: 200, json: async () => ({ id: "card-id" }) };
+      }
+      return { ok: false, status: 403, json: async () => ({}) };
+    },
+  });
+
+  const card = await api.createCard(
+    {
+      name: "Essay",
+      description: "Write it.",
+      submitted: false,
+      url: "https://canvas.example/assignments/1",
+      courseName: "Computer Science",
+    },
+    "trello-list-id",
+  );
+
+  assert.deepEqual(card, { id: "card-id" });
+  assert.equal(requests[0].options.method, "POST");
+  assert.equal(requests[1].options.method, "GET");
+  assert.equal(warnings.length, 1);
+});
+
+test("createCard keeps the card when Canvas Course field assignment fails", async () => {
+  const { createTrelloApi } = requireModule("trello");
+  const requests = [];
+  const api = createTrelloApi({
+    trello: {
+      board: async () => ({ id: "board-id" }),
+      getRestApi: async () => ({
+        isAuthorized: async () => true,
+        getToken: async () => "trello-token",
+      }),
+    },
+    appKey: "app-key",
+    logger: { warn() {} },
+    fetchImpl: async (url, options) => {
+      requests.push({ url, options });
+      if (requests.length === 1) {
+        return { ok: true, status: 200, json: async () => ({ id: "card-id" }) };
+      }
+      if (requests.length === 2) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => [
+            {
+              id: "course-field-id",
+              name: "Canvas Course",
+              type: "text",
+              display: { cardFront: true },
+            },
+          ],
+        };
+      }
+      return { ok: false, status: 500, json: async () => ({}) };
+    },
+  });
+
+  const card = await api.createCard(
+    {
+      name: "Essay",
+      description: "Write it.",
+      submitted: false,
+      url: "https://canvas.example/assignments/1",
+      courseName: "Computer Science",
+    },
+    "trello-list-id",
+  );
+
+  assert.deepEqual(card, { id: "card-id" });
+  assert.equal(requests.length, 3);
+  assert.equal(requests[2].options.method, "PUT");
 });

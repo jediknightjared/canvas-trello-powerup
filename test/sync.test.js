@@ -51,7 +51,11 @@ function createCanvasHarness(responseForUrl) {
 }
 
 test("parseCanvasUrl normalizes supported URLs and rejects other domains", () => {
-  const { parseCanvasUrl } = loaded.url;
+  const { isValidCanvasDomain, parseCanvasUrl } = loaded.url;
+  assert.equal(isValidCanvasDomain("university.instructure.com"), true);
+  assert.equal(isValidCanvasDomain("canvas.school.edu"), true);
+  assert.equal(isValidCanvasDomain("https://university.instructure.com"), false);
+  assert.equal(isValidCanvasDomain("attacker.example/path"), false);
   assert.deepEqual(
     parseCanvasUrl(
       "https://university.instructure.com/courses/12/assignments/34/?module_item_id=5#details",
@@ -71,6 +75,48 @@ test("parseCanvasUrl normalizes supported URLs and rejects other domains", () =>
       "university.instructure.com",
     ),
     null,
+  );
+});
+
+test("sync controller rejects an invalid Canvas domain before loading cards", async () => {
+  const { createSyncController } = loaded.sync;
+  const element = () => ({
+    hidden: false,
+    textContent: "",
+    className: "",
+    addEventListener() {},
+  });
+  const elements = {
+    document: {},
+    progress: element(),
+    scanSummary: element(),
+    resultsBody: element(),
+    closeBtn: element(),
+  };
+  let cardsRequested = false;
+  const controller = createSyncController({
+    elements,
+    canvasApi: {},
+    trelloApi: {
+      getBoardCards: async () => {
+        cardsRequested = true;
+        return [];
+      },
+    },
+    loadCredentials: async () => ({
+      domain: "attacker.example/path",
+      token: "canvas-token",
+    }),
+    closeModal() {},
+    logger: { error() {} },
+  });
+
+  await controller.initialize();
+
+  assert.equal(cardsRequested, false);
+  assert.equal(
+    elements.progress.textContent,
+    "Invalid Canvas domain format. Please use your institution's Canvas URL (e.g., university.instructure.com).",
   );
 });
 
